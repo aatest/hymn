@@ -1,0 +1,2170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>찬송가 · 복음성가 악보 뷰어</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f7f0e3;
+    --sidebar-bg: #f0e8d8;
+    --sidebar-text: #2a2018;
+    --sidebar-muted: #8a7860;
+    --accent: #c4922a;
+    --accent-light: #e8b84b;
+    --viewer-bg: #fffaf3;
+    --border: #dfd0b0;
+    --hover: #e8dcc8;
+    --active: #c4922a;
+    --tag-hymn: #5a7c55;
+    --tag-gospel: #7c5a7a;
+    --shadow: 0 4px 24px rgba(0,0,0,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid #2e2418;
+    flex-shrink: 0;
+    z-index: 10;
+  }
+  header .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    color: var(--sidebar-text);
+    letter-spacing: 0.5px;
+  }
+  header .logo span { color: var(--sidebar-muted); font-size: 14px; margin-left: 8px; font-family: 'Noto Sans KR', sans-serif; font-weight: 300; }
+  .header-actions {
+    display: flex;
+    gap: 6px;
+    margin-left: 10px;
+  }
+  .hdr-btn {
+    background: rgba(196,146,42,0.15);
+    border: 1px solid rgba(196,146,42,0.4);
+    color: var(--accent-light);
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: all 0.18s;
+    white-space: nowrap;
+  }
+  .hdr-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+  header .count-badge {
+    margin-left: auto;
+    background: rgba(196,146,42,0.18);
+    color: var(--accent-light);
+    border: 1px solid rgba(196,146,42,0.35);
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 12px;
+  }
+
+  /* ── Main Layout ── */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 320px;
+    min-width: 260px;
+    max-width: 420px;
+    background: var(--sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #2e2418;
+    flex-shrink: 0;
+    resize: horizontal;
+    overflow: hidden;
+    transition: width 0.15s cubic-bezier(0.4,0,0.2,1),
+                min-width 0.15s cubic-bezier(0.4,0,0.2,1),
+                opacity 0.12s;
+  }
+  .sidebar.collapsed {
+    width: 0 !important;
+    min-width: 0 !important;
+    opacity: 0;
+    pointer-events: none;
+    border-right: none;
+  }
+
+  /* 사이드바 토글 버튼 */
+  .sidebar-toggle {
+    position: absolute;
+    top: 50%;
+    left: 320px; /* sidebar 기본 너비와 동일하게 */
+    transform: translateY(-50%);
+    z-index: 30;
+    width: 22px;
+    height: 56px;
+    background: var(--accent);
+    border: none;
+    border-radius: 0 10px 10px 0;
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.18);
+    padding: 0;
+    line-height: 1;
+    transition: background 0.15s;
+  }
+  .sidebar-toggle:hover { background: var(--accent-light); }
+  .sidebar-toggle .arrow { transition: transform 0.28s; display: inline-block; }
+  .sidebar-toggle.open .arrow { transform: rotate(0deg); }
+  .sidebar-toggle.closed .arrow { transform: rotate(180deg); }
+
+  /* Search */
+  .search-area {
+    padding: 16px;
+    border-bottom: 1px solid #2e2418;
+    flex-shrink: 0;
+  }
+  .search-wrap {
+    position: relative;
+  }
+  .search-wrap input {
+    width: 100%;
+    background: #ece4d4;
+    border: 1px solid #c8b898;
+    border-radius: 8px;
+    color: var(--sidebar-text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    padding: 9px 36px 9px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-wrap input::placeholder { color: var(--sidebar-muted); }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-wrap .search-icon {
+    position: absolute;
+    right: 12px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--sidebar-muted);
+    pointer-events: none;
+    font-size: 14px;
+  }
+
+  /* Filter tabs */
+  .filter-tabs {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .filter-tab {
+    flex: 1;
+    padding: 6px 0;
+    background: transparent;
+    border: 1px solid #c8b898;
+    border-radius: 6px;
+    color: var(--sidebar-muted);
+    font-size: 12px;
+    font-family: 'Noto Sans KR', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .filter-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+  .filter-tab:hover:not(.active) { border-color: var(--accent); color: var(--accent-light); }
+
+  /* Add button */
+  .add-btn {
+    margin: 12px 16px 0;
+    width: calc(100% - 32px);
+    padding: 9px;
+    background: linear-gradient(135deg, var(--accent), #a07020);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .add-btn:hover { opacity: 0.88; }
+  .add-btn:active { transform: scale(0.98); }
+
+  /* List */
+  .list-header {
+    padding: 10px 16px 6px;
+    font-size: 11px;
+    color: var(--sidebar-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+  }
+
+  .song-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 8px 12px;
+    scrollbar-width: thin;
+    scrollbar-color: #c8b898 transparent;
+  }
+  .song-list::-webkit-scrollbar { width: 4px; }
+  .song-list::-webkit-scrollbar-track { background: transparent; }
+  .song-list::-webkit-scrollbar-thumb { background: #c8b898; border-radius: 4px; }
+
+  .song-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    user-select: none;
+    position: relative;
+  }
+  .song-item:hover { background: var(--hover); }
+  .song-item.active { background: rgba(196,146,42,0.15); }
+  .song-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 20%; height: 60%;
+    width: 3px;
+    background: var(--accent);
+    border-radius: 0 2px 2px 0;
+  }
+  .song-item.dragging { opacity: 0.4; }
+  .song-item.drag-over { background: rgba(196,146,42,0.12); border-top: 2px solid var(--accent); }
+
+  .drag-handle {
+    color: #b0a090;
+    font-size: 14px;
+    cursor: grab;
+    flex-shrink: 0;
+    padding: 2px;
+    transition: color 0.15s;
+  }
+  .song-item:hover .drag-handle { color: var(--sidebar-muted); }
+
+  .song-num {
+    font-size: 11px;
+    color: var(--sidebar-muted);
+    min-width: 28px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .song-info { flex: 1; min-width: 0; }
+  .song-title {
+    font-size: 13px;
+    color: var(--sidebar-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+  }
+  .song-item.active .song-title { color: var(--accent-light); }
+  .song-sub {
+    font-size: 11px;
+    color: var(--sidebar-muted);
+    margin-top: 2px;
+  }
+
+  .song-tag {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    font-weight: 500;
+  }
+  .tag-hymn { background: #c8e0c8; color: #2a5c30; }
+  .tag-gospel { background: #dcc8dc; color: #5c2a58; }
+
+  .song-pages {
+    font-size: 10px;
+    color: var(--sidebar-muted);
+    flex-shrink: 0;
+  }
+
+  .delete-btn {
+    background: none;
+    border: none;
+    color: #b0a090;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    opacity: 0;
+    transition: all 0.15s;
+  }
+  .song-item:hover .delete-btn { opacity: 1; color: #c06060; }
+
+  /* Empty state */
+  .empty-state {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--sidebar-muted);
+    font-size: 13px;
+    line-height: 1.8;
+  }
+  .empty-state .icon { font-size: 32px; margin-bottom: 12px; }
+
+  /* ── Viewer ── */
+  .viewer {
+    flex: 1;
+    background: var(--viewer-bg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    min-width: 0;
+  }
+
+  .viewer-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .viewer-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: #2a1e10;
+    flex: 1;
+  }
+  .viewer-subtitle {
+    font-size: 12px;
+    color: #8a7d68;
+    margin-top: 2px;
+  }
+  .nav-btn {
+    background: var(--sidebar-bg);
+    border: none;
+    color: var(--sidebar-text);
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+  .nav-btn:hover { background: var(--accent); }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; background: #ccc; }
+  .page-indicator {
+    font-size: 13px;
+    color: #8a7d68;
+    min-width: 60px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  /* ── Continuous Nav Bar ── */
+  .cont-nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 20px;
+    background: #fffdf8;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    gap: 10px;
+  }
+  .cont-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 12px;
+    color: #7a6a50;
+    cursor: pointer;
+    transition: all 0.15s;
+    max-width: 200px;
+    overflow: hidden;
+  }
+  .cont-nav-btn:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .cont-nav-btn:disabled { opacity: 0.28; cursor: default; }
+  .cont-nav-btn .arrow { font-size: 14px; flex-shrink: 0; }
+  .cont-nav-btn .label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cont-song-info {
+    font-size: 12px;
+    color: #a09070;
+    text-align: center;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .cont-song-info strong { color: #6a5030; font-weight: 600; }
+
+  .zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-left: 1px solid var(--border);
+    padding-left: 12px;
+    margin-left: 4px;
+  }
+  .zoom-btn {
+    background: #f0ebe0;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    width: 30px; height: 30px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: #4a3c28;
+    transition: background 0.15s;
+  }
+  .zoom-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .zoom-level { font-size: 12px; color: #8a7d68; min-width: 38px; text-align: center; }
+
+  /* Image area */
+  .image-area {
+    flex: 1;
+    overflow: auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 20px;
+    background: var(--bg);
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+    position: relative;
+    min-height: 0;
+  }
+
+  .sheet-image {
+    max-width: calc(100% - 40px);
+    max-height: calc(100vh - 260px);
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    box-shadow: var(--shadow);
+    border-radius: 4px;
+    transition: transform 0.2s;
+    transform-origin: top center;
+    display: block;
+  }
+
+  /* Welcome / No selection */
+  .no-selection {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #b0a090;
+    gap: 16px;
+  }
+  .no-selection .big-icon { font-size: 64px; opacity: 0.4; }
+  .no-selection h2 {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 22px;
+    color: #8a7060;
+    font-weight: 600;
+  }
+  .no-selection p { font-size: 14px; color: #b0a090; text-align: center; line-height: 1.7; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--sidebar-bg);
+    border: 1px solid #c8b898;
+    border-radius: 16px;
+    padding: 28px;
+    width: 440px;
+    max-width: 95vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    transform: translateY(20px);
+    transition: transform 0.2s;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal h3 {
+    font-family: 'Noto Serif KR', serif;
+    color: var(--accent-light);
+    font-size: 18px;
+    margin-bottom: 20px;
+  }
+
+  .form-group { margin-bottom: 16px; }
+  .form-label {
+    display: block;
+    font-size: 12px;
+    color: var(--sidebar-muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+  .form-input {
+    width: 100%;
+    background: #ece4d4;
+    border: 1px solid #c8b898;
+    border-radius: 8px;
+    color: var(--sidebar-text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    padding: 9px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-input:focus { border-color: var(--accent); }
+
+  .form-row { display: flex; gap: 12px; }
+  .form-row .form-group { flex: 1; }
+
+  .type-radio {
+    display: flex;
+    gap: 10px;
+  }
+  .type-radio label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid #c8b898;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--sidebar-muted);
+    transition: all 0.15s;
+  }
+  .type-radio input { display: none; }
+  .type-radio input:checked + span { color: var(--accent-light); }
+  .type-radio label:has(input:checked) { border-color: var(--accent); background: rgba(196,146,42,0.1); color: var(--accent-light); }
+
+  /* File drop zone */
+  .drop-zone {
+    border: 2px dashed #c8b898;
+    border-radius: 10px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--sidebar-muted);
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .drop-zone:hover, .drop-zone.drag-active { border-color: var(--accent); background: rgba(196,146,42,0.05); color: var(--accent-light); }
+  .drop-zone .drop-icon { font-size: 28px; margin-bottom: 8px; }
+  .file-preview {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .file-chip {
+    background: rgba(196,146,42,0.15);
+    border: 1px solid rgba(196,146,42,0.3);
+    color: var(--accent-light);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 11px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .file-chip button { background: none; border: none; color: inherit; cursor: pointer; font-size: 12px; padding: 0; line-height: 1; }
+
+  .modal-actions { display: flex; gap: 10px; margin-top: 22px; }
+  .btn-cancel {
+    flex: 1; padding: 10px;
+    background: transparent; border: 1px solid #c8b898;
+    border-radius: 8px; color: var(--sidebar-muted);
+    font-family: 'Noto Sans KR', sans-serif; font-size: 13px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .btn-cancel:hover { border-color: #5a4a38; color: var(--sidebar-text); }
+  .btn-save {
+    flex: 2; padding: 10px;
+    background: linear-gradient(135deg, var(--accent), #a07020);
+    border: none; border-radius: 8px; color: #fff;
+    font-family: 'Noto Sans KR', sans-serif; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: opacity 0.15s;
+  }
+  .btn-save:hover { opacity: 0.88; }
+
+  /* Thumbnail strip */
+  .thumb-strip {
+    display: flex;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #fff;
+    border-top: 1px solid var(--border);
+    overflow-x: auto;
+    flex-shrink: 0;
+    min-height: 68px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .thumb {
+    width: 44px; height: 50px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.15s, transform 0.15s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  }
+  .thumb:hover { transform: scale(1.08); }
+  .thumb.active { border-color: var(--accent); }
+  .thumb-placeholder {
+    width: 44px; height: 50px;
+    background: #f0e8d8;
+    border-radius: 4px;
+    border: 2px solid var(--border);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .thumb-placeholder:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* Keyboard hints */
+  .kbd-hint {
+    position: absolute;
+    bottom: 14px;
+    right: 18px;
+    display: flex;
+    gap: 8px;
+    opacity: 0.45;
+    font-size: 11px;
+    color: #8a7060;
+    pointer-events: none;
+  }
+  .kbd { background: #e8dfc8; border-radius: 4px; padding: 2px 6px; }
+
+  /* ── Catalog Modal ── */
+  .catalog-btn {
+    margin: 8px 16px 0;
+    width: calc(100% - 32px);
+    padding: 8px;
+    background: transparent;
+    border: 1px solid #c8b898;
+    border-radius: 8px;
+    color: var(--sidebar-muted);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+  .catalog-btn:hover { border-color: var(--accent); color: var(--accent-light); }
+
+  .catalog-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .catalog-overlay.open { opacity: 1; pointer-events: all; }
+
+  .catalog-modal {
+    background: var(--sidebar-bg);
+    border: 1px solid #c8b898;
+    border-radius: 16px;
+    width: 600px;
+    max-width: 95vw;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+    transform: translateY(24px);
+    transition: transform 0.2s;
+    overflow: hidden;
+  }
+  .catalog-overlay.open .catalog-modal { transform: translateY(0); }
+
+  .catalog-header {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid #2e2418;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .catalog-header h3 {
+    font-family: 'Noto Serif KR', serif;
+    color: var(--accent-light);
+    font-size: 16px;
+    flex: 1;
+  }
+  .catalog-close {
+    background: none; border: none;
+    color: var(--sidebar-muted); font-size: 18px;
+    cursor: pointer; padding: 2px 6px;
+    border-radius: 6px; transition: all 0.15s;
+  }
+  .catalog-close:hover { background: #2e2418; color: var(--sidebar-text); }
+
+  .catalog-search-row {
+    padding: 12px 16px;
+    border-bottom: 1px solid #2e2418;
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .catalog-search-wrap {
+    flex: 1;
+    position: relative;
+  }
+  .catalog-search-wrap input {
+    width: 100%;
+    background: #ece4d4;
+    border: 1px solid #c8b898;
+    border-radius: 8px;
+    color: var(--sidebar-text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    padding: 8px 36px 8px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .catalog-search-wrap input::placeholder { color: var(--sidebar-muted); }
+  .catalog-search-wrap input:focus { border-color: var(--accent); }
+  .catalog-search-wrap .si {
+    position: absolute; right: 10px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--sidebar-muted); font-size: 13px; pointer-events: none;
+  }
+  .catalog-type-tabs {
+    display: flex;
+    gap: 6px;
+  }
+  .ctype-tab {
+    padding: 7px 12px;
+    background: transparent;
+    border: 1px solid #c8b898;
+    border-radius: 7px;
+    color: var(--sidebar-muted);
+    font-size: 12px;
+    font-family: 'Noto Sans KR', sans-serif;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .ctype-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .ctype-tab:hover:not(.active) { border-color: var(--accent); color: var(--accent-light); }
+
+  .catalog-result-info {
+    padding: 6px 16px;
+    font-size: 11px;
+    color: var(--sidebar-muted);
+    flex-shrink: 0;
+    border-bottom: 1px solid #d8ccb8;
+  }
+
+  .catalog-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 8px;
+    scrollbar-width: thin;
+    scrollbar-color: #c8b898 transparent;
+  }
+  .catalog-list::-webkit-scrollbar { width: 4px; }
+  .catalog-list::-webkit-scrollbar-thumb { background: #c8b898; border-radius: 4px; }
+
+  .catalog-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .catalog-item:hover { background: var(--hover); }
+  .catalog-item .ci-num {
+    font-size: 11px;
+    color: var(--sidebar-muted);
+    min-width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .catalog-item .ci-title {
+    flex: 1;
+    font-size: 13px;
+    color: var(--sidebar-text);
+  }
+  .catalog-item .ci-title mark {
+    background: rgba(196,146,42,0.3);
+    color: var(--accent-light);
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+  .catalog-item .ci-tag {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+  .catalog-item .ci-add {
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.12s;
+    white-space: nowrap;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+  .catalog-item:hover .ci-add { opacity: 1; }
+  .catalog-item.already-added .ci-title { opacity: 0.45; }
+  .catalog-item.already-added .ci-add { display: none; }
+  .catalog-item.already-added::after {
+    content: '✓ 등록됨';
+    font-size: 10px;
+    color: var(--sidebar-muted);
+    flex-shrink: 0;
+  }
+  .ci-artist {
+    font-size: 10px;
+    color: var(--sidebar-muted);
+    flex-shrink: 0;
+    background: #e8dcc8;
+    border: 1px solid #c8b898;
+    border-radius: 6px;
+    padding: 1px 7px;
+  }
+  .catalog-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--sidebar-muted);
+    font-size: 13px;
+  }
+
+  /* ── Image Folder Settings ── */
+  .folder-settings-bar {
+    padding: 8px 12px;
+    background: rgba(196,146,42,0.06);
+    border-bottom: 1px solid #2e2418;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .folder-settings-bar .folder-label {
+    font-size: 11px;
+    color: var(--sidebar-muted);
+    white-space: nowrap;
+  }
+  .folder-path-display {
+    flex: 1;
+    font-size: 11px;
+    color: var(--accent-light);
+    background: #ece4d4;
+    border: 1px solid #c8b898;
+    border-radius: 6px;
+    padding: 4px 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: default;
+    min-width: 0;
+  }
+  .folder-path-display.empty {
+    color: var(--sidebar-muted);
+    font-style: italic;
+  }
+  .folder-select-btn {
+    background: rgba(196,146,42,0.18);
+    border: 1px solid rgba(196,146,42,0.4);
+    color: var(--accent-light);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    white-space: nowrap;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .folder-select-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .folder-clear-btn {
+    background: none;
+    border: none;
+    color: #b0a090;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    transition: color 0.15s;
+  }
+  .folder-clear-btn:hover { color: #c06060; }
+
+  /* catalog item image status badge */
+  .ci-img-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    background: rgba(90,170,90,0.18);
+    color: #3a8a3a;
+    border: 1px solid rgba(90,170,90,0.35);
+  }
+  .ci-img-badge.missing {
+    background: rgba(180,100,60,0.12);
+    color: #a06030;
+    border-color: rgba(180,100,60,0.25);
+  }
+
+  /* folder stats in catalog header */
+  .folder-scan-info {
+    padding: 6px 16px;
+    font-size: 11px;
+    color: #5a9a5a;
+    background: rgba(90,170,90,0.07);
+    border-bottom: 1px solid #d8ccb8;
+    display: none;
+    flex-shrink: 0;
+    gap: 6px;
+    align-items: center;
+  }
+  .folder-scan-info.visible { display: flex; }
+  .folder-scan-info .scan-icon { font-size: 13px; }
+
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo">♪ 악보 라이브러리 <span>찬송가 · 복음성가</span></span>
+  <span class="count-badge" id="totalCount">0곡</span>
+  <div class="header-actions">
+    <button class="hdr-btn" id="exportBtn" title="목록 저장">💾 저장</button>
+    <button class="hdr-btn" id="importBtn" title="목록 불러오기">📂 불러오기</button>
+    <input type="file" id="importFileInput" accept=".json" style="display:none">
+  </div>
+</header>
+
+<div class="main">
+  <!-- 사이드바 접기/펼치기 버튼 — .main 기준 absolute 위치 -->
+  <button class="sidebar-toggle open" id="sidebarToggle" title="목록 접기/펼치기">
+    <span class="arrow">‹</span>
+  </button>
+
+  <!-- ── SIDEBAR ── -->
+  <div class="sidebar">
+    <div class="search-area">
+      <div class="search-wrap">
+        <input type="text" id="searchInput" placeholder="번호 또는 제목으로 검색…">
+        <span class="search-icon">🔍</span>
+      </div>
+      <div class="filter-tabs">
+        <button class="filter-tab active" data-filter="all">전체</button>
+        <button class="filter-tab" data-filter="hymn">찬송가</button>
+        <button class="filter-tab" data-filter="gospel">복음성가</button>
+      </div>
+    </div>
+
+    
+  <!-- 악보 이미지 폴더 설정 바 -->
+  <div class="folder-settings-bar">
+    <span class="folder-label">🗂 악보 폴더</span>
+    <span class="folder-path-display empty" id="folderPathDisplay">폴더 미설정</span>
+    <button class="folder-select-btn" id="folderSelectBtn">폴더 선택</button>
+    <button class="folder-clear-btn" id="folderClearBtn" title="폴더 설정 해제" style="display:none">✕</button>
+    <input type="file" id="folderInput" webkitdirectory style="display:none" accept="image/*">
+  </div>
+
+  <button class="catalog-btn" id="catalogBtn">📖 찬송가 목차에서 악보 추가</button>
+  <button class="add-btn" id="addBtn">＋ 악보 추가</button>
+
+    <div class="list-header" id="listHeader">목록</div>
+    <div class="song-list" id="songList"></div>
+  </div>
+
+  <!-- ── VIEWER ── -->
+  <div class="viewer" id="viewer">
+    <div class="no-selection" id="noSelection">
+      <div class="big-icon">🎵</div>
+      <h2>악보를 선택하세요</h2>
+      <p>왼쪽 목록에서 곡을 클릭하면<br>이곳에 악보 이미지가 표시됩니다.</p>
+    </div>
+
+    <div id="viewerContent" style="display:none; flex-direction:column; flex:1; overflow:hidden;">
+      <div class="viewer-toolbar">
+        <div style="flex:1">
+          <div class="viewer-title" id="vTitle">—</div>
+          <div class="viewer-subtitle" id="vSubtitle"></div>
+        </div>
+        <button class="nav-btn" id="prevBtn" title="이전 (←)">‹</button>
+        <span class="page-indicator" id="pageIndicator">—</span>
+        <button class="nav-btn" id="nextBtn" title="다음 (→)">›</button>
+        <div class="zoom-controls">
+          <button class="zoom-btn" id="zoomOut" title="축소">−</button>
+          <span class="zoom-level" id="zoomLevel">100%</span>
+          <button class="zoom-btn" id="zoomIn" title="확대">＋</button>
+          <button class="zoom-btn" id="zoomReset" title="원래 크기">⊙</button>
+        </div>
+      </div>
+
+      <!-- 곡 간 이동 바 -->
+      <div class="cont-nav-bar">
+        <button class="cont-nav-btn" id="contPrevBtn" disabled>
+          <span class="arrow">«</span>
+          <span class="label" id="contPrevLabel">이전 곡</span>
+        </button>
+        <span class="cont-song-info" id="contSongInfo">— / —</span>
+        <button class="cont-nav-btn" id="contNextBtn" disabled>
+          <span class="label" id="contNextLabel">다음 곡</span>
+          <span class="arrow">»</span>
+        </button>
+      </div>
+
+      <div class="image-area" id="imageArea">
+        <img class="sheet-image" id="sheetImg" src="" alt="악보">
+        <div class="kbd-hint">
+          <span><span class="kbd">←</span><span class="kbd">→</span> 페이지</span>
+          <span><span class="kbd">Shift←</span><span class="kbd">Shift→</span> 곡 이동</span>
+          <span><span class="kbd">+</span><span class="kbd">−</span> 확대/축소</span>
+        </div>
+      </div>
+
+      <div class="thumb-strip" id="thumbStrip"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── CATALOG MODAL ── -->
+<div class="catalog-overlay" id="catalogOverlay">
+  <div class="catalog-modal">
+    <div class="catalog-header">
+      <h3 id="catalogTitle">📖 찬송가 목차에서 악보 추가</h3>
+      <button class="catalog-close" id="catalogClose">✕</button>
+    </div>
+    <div class="catalog-search-row">
+      <div class="catalog-search-wrap">
+        <input type="text" id="catalogSearch" placeholder="번호 또는 제목 키워드로 검색… (예: 93, 예수, 사랑)" autocomplete="off">
+        <span class="si">🔍</span>
+      </div>
+      <div class="catalog-type-tabs">
+        <button class="ctype-tab active" data-ctype="hymn">찬송가</button>
+        <button class="ctype-tab" data-ctype="gospel">복음성가</button>
+      </div>
+    </div>
+    <div class="catalog-result-info" id="catalogResultInfo">전체 645곡</div>
+    <div class="folder-scan-info" id="folderScanInfo">
+      <span class="scan-icon">🖼</span>
+      <span id="folderScanText"></span>
+    </div>
+    <div class="catalog-list" id="catalogList"></div>
+  </div>
+</div>
+
+<!-- ── ADD MODAL ── -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3>악보 추가</h3>
+
+    <div class="form-group">
+      <label class="form-label">구분</label>
+      <div class="type-radio">
+        <label>
+          <input type="radio" name="songType" value="hymn" checked>
+          <span>🎼 찬송가</span>
+        </label>
+        <label>
+          <input type="radio" name="songType" value="gospel">
+          <span>🎵 복음성가</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">번호 (선택)</label>
+        <input class="form-input" type="text" id="inpNumber" placeholder="예) 찬 93장">
+      </div>
+      <div class="form-group" style="flex:2">
+        <label class="form-label">제목 *</label>
+        <input class="form-input" type="text" id="inpTitle" placeholder="곡 제목 입력">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">악보 이미지 (PNG / JPG / WEBP, 여러 장 가능)</label>
+      <div class="drop-zone" id="dropZone">
+        <div class="drop-icon">🖼</div>
+        이미지를 드래그하거나 클릭하여 업로드<br>
+        <small style="opacity:0.6">여러 장을 선택하면 페이지 순서대로 저장됩니다</small>
+        <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+      </div>
+      <div class="file-preview" id="filePreview"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" id="cancelBtn">취소</button>
+      <button class="btn-save" id="saveBtn">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────
+//  State
+// ─────────────────────────────────────────
+let songs = [];
+let activeId = null;
+let currentPageIdx = 0;
+let zoomScale = 1;
+let filterMode = 'all';
+let searchQuery = '';
+let pendingFiles = []; // {name, dataUrl}
+let dragSrcId = null;
+
+// ─────────────────────────────────────────
+//  Image Folder State
+//  key: "hymn:93" or "gospel:5"  → [dataUrl, dataUrl, ...]
+// ─────────────────────────────────────────
+let folderImageMap = {};   // 번호 → [dataUrl, ...]
+let folderName = '';       // 표시용 폴더명
+let folderFileCount = 0;   // 총 이미지 파일 수
+let folderMappedCount = 0; // 번호 매핑된 파일 수
+
+// ─────────────────────────────────────────
+//  IndexedDB (용량 제한 없음)
+// ─────────────────────────────────────────
+const DB_NAME = 'HymnViewerDB';
+const DB_VERSION = 1;
+const STORE = 'songs';
+let db = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(STORE)) {
+        d.createObjectStore(STORE, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function dbGetAll() {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function dbPutAll(songList) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    // 기존 전체 지우고 새로 저장 (순서 보장을 위해 _order 필드 추가)
+    store.clear();
+    songList.forEach((s, i) => store.put({ ...s, _order: i }));
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function dbDeleteOne(id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).delete(id);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+// ─────────────────────────────────────────
+//  Persist
+// ─────────────────────────────────────────
+async function save() {
+  try {
+    await dbPutAll(songs);
+  } catch (err) {
+    console.error('저장 실패:', err);
+  }
+}
+
+// ─────────────────────────────────────────
+//  Init: DB 열고 데이터 로드 (localStorage 마이그레이션 포함)
+// ─────────────────────────────────────────
+async function initDB() {
+  db = await openDB();
+
+  // localStorage 마이그레이션
+  const legacy = localStorage.getItem('hymnSongs');
+  if (legacy) {
+    try {
+      const legacySongs = JSON.parse(legacy);
+      if (Array.isArray(legacySongs) && legacySongs.length > 0) {
+        await dbPutAll(legacySongs);
+        localStorage.removeItem('hymnSongs');
+        console.log(`localStorage에서 ${legacySongs.length}곡 마이그레이션 완료`);
+      }
+    } catch(e) { /* 무시 */ }
+  }
+
+  const stored = await dbGetAll();
+  // _order 기준 정렬
+  songs = stored.sort((a, b) => (a._order ?? 0) - (b._order ?? 0));
+  renderList();
+}
+
+// ─────────────────────────────────────────
+//  Render List
+// ─────────────────────────────────────────
+function filteredSongs() {
+  return songs.filter(s => {
+    const matchType = filterMode === 'all' || s.type === filterMode;
+    const q = searchQuery.toLowerCase();
+    const matchSearch = !q || s.title.toLowerCase().includes(q) || (s.number && s.number.toLowerCase().includes(q));
+    return matchType && matchSearch;
+  });
+}
+
+function renderList() {
+  const list = document.getElementById('songList');
+  const items = filteredSongs();
+  document.getElementById('totalCount').textContent = songs.length + '곡';
+  document.getElementById('listHeader').textContent = `목록 (${items.length}곡)`;
+
+  if (items.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">📂</div>${searchQuery || filterMode !== 'all' ? '검색 결과가 없습니다.' : '악보를 추가해 보세요.<br>위의 <b>+ 악보 추가</b> 버튼을 눌러<br>첫 번째 곡을 등록하세요.'}</div>`;
+    return;
+  }
+
+  list.innerHTML = '';
+  items.forEach(song => {
+    const div = document.createElement('div');
+    div.className = 'song-item' + (song.id === activeId ? ' active' : '');
+    div.dataset.id = song.id;
+    // draggable은 drag-handle에서만 제어 (iOS 터치 클릭 호환)
+    const isTouchDevice = () => navigator.maxTouchPoints > 0;
+    if (!isTouchDevice()) div.draggable = true;
+
+    const tagClass = song.type === 'hymn' ? 'tag-hymn' : 'tag-gospel';
+    const tagLabel = song.type === 'hymn' ? '찬송가' : '복음성가';
+    const pages = song.images ? song.images.length : 0;
+
+    div.innerHTML = `
+      <span class="drag-handle" title="드래그로 순서 변경">⠿</span>
+      <span class="song-num">${song.number || ''}</span>
+      <div class="song-info">
+        <div class="song-title">${song.title}</div>
+        ${pages > 0 ? `<div class="song-sub">${pages}페이지</div>` : '<div class="song-sub" style="color:#6a5030">이미지 없음</div>'}
+      </div>
+      <span class="song-tag ${tagClass}">${tagLabel}</span>
+      <button class="delete-btn" title="삭제" data-id="${song.id}">✕</button>
+    `;
+
+    // Click to open (터치 기기 포함)
+    div.addEventListener('click', (e) => {
+      if (e.target.classList.contains('delete-btn')) return;
+      openSong(song.id);
+    });
+    div.addEventListener('touchend', (e) => {
+      if (e.target.classList.contains('delete-btn')) return;
+      if (e.cancelable) e.preventDefault();
+      openSong(song.id);
+    }, { passive: false });
+
+    // Delete
+    div.querySelector('.delete-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm(`"${song.title}" 을(를) 삭제할까요?`)) {
+        songs = songs.filter(s => s.id !== song.id);
+        if (activeId === song.id) { activeId = null; showNoSelection(); }
+        save(); renderList();
+      }
+    });
+
+    // Drag & Drop
+    const handle = div.querySelector('.drag-handle');
+    handle.addEventListener('mousedown', () => { div.draggable = true; });
+    handle.addEventListener('mouseleave', () => { if (!dragSrcId) div.draggable = false; });
+
+    div.addEventListener('dragstart', (e) => {
+      dragSrcId = song.id;
+      div.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', song.id);
+    });
+    div.addEventListener('dragend', () => {
+      div.draggable = false;
+      dragSrcId = null;
+      div.classList.remove('dragging');
+      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    });
+    div.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      div.classList.add('drag-over');
+    });
+    div.addEventListener('dragleave', (e) => {
+      if (!div.contains(e.relatedTarget)) div.classList.remove('drag-over');
+    });
+    div.addEventListener('drop', (e) => {
+      e.preventDefault();
+      div.classList.remove('drag-over');
+      const srcId = dragSrcId || e.dataTransfer.getData('text/plain');
+      if (srcId && srcId !== song.id) {
+        const srcIdx = songs.findIndex(s => s.id === srcId);
+        const tgtIdx = songs.findIndex(s => s.id === song.id);
+        if (srcIdx !== -1 && tgtIdx !== -1) {
+          const [moved] = songs.splice(srcIdx, 1);
+          songs.splice(tgtIdx, 0, moved);
+          save();
+          renderList();
+        }
+      }
+    });
+
+    list.appendChild(div);
+  });
+}
+
+// ─────────────────────────────────────────
+//  Open Song
+// ─────────────────────────────────────────
+function openSong(id) {
+  const song = songs.find(s => s.id === id);
+  if (!song) return;
+  activeId = id;
+  currentPageIdx = 0;
+  zoomScale = 1;
+  renderList();
+  showViewer(song);
+}
+
+function showNoSelection() {
+  document.getElementById('noSelection').style.display = 'flex';
+  document.getElementById('viewerContent').style.display = 'none';
+}
+
+function showViewer(song) {
+  document.getElementById('noSelection').style.display = 'none';
+  const vc = document.getElementById('viewerContent');
+  vc.style.display = 'flex';
+
+  document.getElementById('vTitle').textContent = (song.number ? song.number + ' ' : '') + song.title;
+  document.getElementById('vSubtitle').textContent = song.type === 'hymn' ? '찬송가' : '복음성가';
+
+  renderPage(song);
+  renderThumbs(song);
+  updateContNav();
+}
+
+function renderPage(song) {
+  const imgs = song.images || [];
+  const img = document.getElementById('sheetImg');
+  const pi = document.getElementById('pageIndicator');
+
+  if (imgs.length === 0) {
+    img.src = '';
+    img.style.display = 'none';
+    pi.textContent = '이미지 없음';
+  } else {
+    img.style.display = 'block';
+    img.src = imgs[currentPageIdx];
+    // CSS zoom: 레이아웃 공간을 실제로 차지하므로 스크롤도 자연스럽게 동작
+    img.style.maxWidth  = 'calc(100% - 40px)';
+    img.style.maxHeight = 'calc(100vh - 260px)';
+    img.style.width     = 'auto';
+    img.style.height    = 'auto';
+    img.style.transform = '';
+    img.style.zoom      = zoomScale;
+    pi.textContent = `${currentPageIdx + 1} / ${imgs.length}`;
+  }
+
+  // 페이지 이전/다음 버튼: 곡 경계 넘기 고려 (곡 목록 첫/마지막 곡의 끝에서만 비활성)
+  const fList = filteredSongs();
+  const sIdx = getSongListIndex(activeId);
+  const atFirstPage = currentPageIdx <= 0;
+  const atLastPage = currentPageIdx >= imgs.length - 1 || imgs.length === 0;
+  const isFirstSong = sIdx <= 0;
+  const isLastSong = sIdx >= fList.length - 1;
+  document.getElementById('prevBtn').disabled = atFirstPage && isFirstSong;
+  document.getElementById('nextBtn').disabled = atLastPage && isLastSong;
+  document.getElementById('zoomLevel').textContent = Math.round(zoomScale * 100) + '%';
+
+  // update thumb active
+  document.querySelectorAll('.thumb').forEach((t, i) => t.classList.toggle('active', i === currentPageIdx));
+}
+
+function renderThumbs(song) {
+  const strip = document.getElementById('thumbStrip');
+  strip.innerHTML = '';
+  const imgs = song.images || [];
+  imgs.forEach((src, i) => {
+    const img = document.createElement('img');
+    img.className = 'thumb' + (i === currentPageIdx ? ' active' : '');
+    img.src = src;
+    img.title = `페이지 ${i+1}`;
+    img.addEventListener('click', () => { currentPageIdx = i; renderPage(song); });
+    strip.appendChild(img);
+  });
+  // Add image button
+  const addThumb = document.createElement('div');
+  addThumb.className = 'thumb-placeholder';
+  addThumb.title = '이미지 추가';
+  addThumb.textContent = '＋';
+  addThumb.addEventListener('click', () => openAddImageForSong(song));
+  strip.appendChild(addThumb);
+}
+
+function openAddImageForSong(song) {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true;
+  inp.onchange = async () => {
+    for (const file of inp.files) {
+      const dataUrl = await readFile(file);
+      song.images = song.images || [];
+      song.images.push(dataUrl);
+    }
+    save(); renderThumbs(song); renderPage(song);
+  };
+  inp.click();
+}
+
+
+
+// ─────────────────────────────────────────
+//  Navigation — 페이지 & 곡 간 연속 이동
+// ─────────────────────────────────────────
+
+// 현재 필터된 목록 기준으로 곡 순서 인덱스 반환
+function getSongListIndex(id) {
+  return filteredSongs().findIndex(s => s.id === id);
+}
+
+// 곡 이동 (dir: -1 이전, +1 다음)
+function navigateSong(dir) {
+  const list = filteredSongs();
+  const idx = getSongListIndex(activeId);
+  const nextIdx = idx + dir;
+  if (nextIdx < 0 || nextIdx >= list.length) return;
+  openSong(list[nextIdx].id);
+  // 다음 곡으로 가면 첫 페이지, 이전 곡으로 가면 마지막 페이지
+  if (dir === 1) {
+    currentPageIdx = 0;
+  } else {
+    const nextSong = list[nextIdx];
+    currentPageIdx = Math.max(0, (nextSong.images || []).length - 1);
+  }
+  const targetSong = songs.find(s => s.id === list[nextIdx].id);
+  if (targetSong) { renderPage(targetSong); renderThumbs(targetSong); }
+}
+
+// 페이지 이동 — 끝/시작에서 곡 경계 넘기
+function navigate(dir) {
+  const song = songs.find(s => s.id === activeId);
+  if (!song) return;
+  const imgs = song.images || [];
+
+  const nextPage = currentPageIdx + dir;
+
+  if (nextPage < 0) {
+    // ← 첫 페이지에서 → 이전 곡 마지막 페이지로
+    navigateSong(-1);
+    return;
+  }
+  if (nextPage >= imgs.length) {
+    // → 마지막 페이지에서 → 다음 곡 첫 페이지로
+    navigateSong(1);
+    return;
+  }
+
+  currentPageIdx = nextPage;
+  renderPage(song);
+}
+
+// 곡 간 이동 바 업데이트
+function updateContNav() {
+  const list = filteredSongs();
+  const idx = getSongListIndex(activeId);
+  const total = list.length;
+
+  const prevSong = idx > 0 ? list[idx - 1] : null;
+  const nextSong = idx < total - 1 ? list[idx + 1] : null;
+
+  const contPrevBtn = document.getElementById('contPrevBtn');
+  const contNextBtn = document.getElementById('contNextBtn');
+  const contPrevLabel = document.getElementById('contPrevLabel');
+  const contNextLabel = document.getElementById('contNextLabel');
+  const contSongInfo = document.getElementById('contSongInfo');
+
+  contPrevBtn.disabled = !prevSong;
+  contNextBtn.disabled = !nextSong;
+  contPrevLabel.textContent = prevSong ? (prevSong.number ? prevSong.number + ' ' : '') + prevSong.title : '이전 곡 없음';
+  contNextLabel.textContent = nextSong ? (nextSong.number ? nextSong.number + ' ' : '') + nextSong.title : '다음 곡 없음';
+  contSongInfo.innerHTML = `<strong>${idx + 1}</strong> / ${total}곡`;
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => navigate(-1));
+document.getElementById('nextBtn').addEventListener('click', () => navigate(1));
+document.getElementById('contPrevBtn').addEventListener('click', () => navigateSong(-1));
+document.getElementById('contNextBtn').addEventListener('click', () => navigateSong(1));
+
+// ─────────────────────────────────────────
+//  Touch Swipe Gesture (아이패드 / 터치 기기)
+// ─────────────────────────────────────────
+(function initSwipe() {
+  const area = document.getElementById('imageArea');
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchStartTime = 0;
+  let isSwiping = false;
+
+  // 스와이프 힌트 오버레이 생성
+  const hint = document.createElement('div');
+  hint.id = 'swipeHint';
+  hint.style.cssText = `
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    border-radius: 16px;
+    padding: 14px 28px;
+    font-size: 22px;
+    font-family: 'Noto Sans KR', sans-serif;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 50;
+    white-space: nowrap;
+    letter-spacing: 1px;
+  `;
+  area.appendChild(hint);
+
+  function showHint(text) {
+    hint.textContent = text;
+    hint.style.opacity = '1';
+    clearTimeout(hint._timer);
+    hint._timer = setTimeout(() => { hint.style.opacity = '0'; }, 500);
+  }
+
+  area.addEventListener('touchstart', (e) => {
+    // 멀티터치(핀치줌 등)는 무시
+    if (e.touches.length !== 1) { isSwiping = false; return; }
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchStartTime = Date.now();
+    isSwiping = true;
+  }, { passive: true });
+
+  area.addEventListener('touchmove', (e) => {
+    if (!isSwiping || e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - touchStartX;
+    const dy = e.touches[0].clientY - touchStartY;
+    // 수평 스와이프가 주도적일 때만 스크롤 방지
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  area.addEventListener('touchend', (e) => {
+    if (!isSwiping) return;
+    isSwiping = false;
+
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    const dt = Date.now() - touchStartTime;
+
+    // 조건: 수평 이동이 수직보다 크고, 최소 40px 이상, 400ms 이내
+    const isHorizontal = Math.abs(dx) > Math.abs(dy);
+    const isSwipe = Math.abs(dx) > 40 && dt < 400;
+
+    if (!isHorizontal || !isSwipe) return;
+
+    if (dx < 0) {
+      // 왼쪽으로 스와이프 → 다음 페이지
+      showHint('▶');
+      navigate(1);
+    } else {
+      // 오른쪽으로 스와이프 → 이전 페이지
+      showHint('◀');
+      navigate(-1);
+    }
+  }, { passive: true });
+})();
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'ArrowLeft' && e.shiftKey) { navigateSong(-1); return; }
+  if (e.key === 'ArrowRight' && e.shiftKey) { navigateSong(1); return; }
+  if (e.key === 'ArrowLeft') navigate(-1);
+  if (e.key === 'ArrowRight') navigate(1);
+  if (e.key === '+' || e.key === '=') zoom(0.1);
+  if (e.key === '-') zoom(-0.1);
+  if (e.key === '0') resetZoom();
+});
+
+// ─────────────────────────────────────────
+//  Zoom
+// ─────────────────────────────────────────
+function zoom(delta) {
+  zoomScale = Math.max(0.3, Math.min(3, zoomScale + delta));
+  const song = songs.find(s => s.id === activeId);
+  if (song) renderPage(song);
+}
+function resetZoom() { zoomScale = 1; const song = songs.find(s => s.id === activeId); if (song) renderPage(song); }
+
+document.getElementById('zoomIn').addEventListener('click', () => zoom(0.15));
+document.getElementById('zoomOut').addEventListener('click', () => zoom(-0.15));
+document.getElementById('zoomReset').addEventListener('click', resetZoom);
+
+// ─────────────────────────────────────────
+//  Search & Filter
+// ─────────────────────────────────────────
+document.getElementById('searchInput').addEventListener('input', e => { searchQuery = e.target.value; renderList(); });
+
+document.querySelectorAll('.filter-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterMode = btn.dataset.filter;
+    renderList();
+  });
+});
+
+// ─────────────────────────────────────────
+//  Modal
+// ─────────────────────────────────────────
+function openModal() {
+  pendingFiles = [];
+  document.getElementById('inpTitle').value = '';
+  document.getElementById('inpNumber').value = '';
+  document.getElementById('filePreview').innerHTML = '';
+  document.querySelector('input[name="songType"][value="hymn"]').checked = true;
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('inpTitle').focus(), 200);
+}
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+
+document.getElementById('addBtn').addEventListener('click', openModal);
+document.getElementById('cancelBtn').addEventListener('click', closeModal);
+document.getElementById('modalOverlay').addEventListener('click', (e) => { if (e.target === document.getElementById('modalOverlay')) closeModal(); });
+
+document.getElementById('saveBtn').addEventListener('click', () => {
+  const title = document.getElementById('inpTitle').value.trim();
+  if (!title) { document.getElementById('inpTitle').focus(); return; }
+  const type = document.querySelector('input[name="songType"]:checked').value;
+  const number = document.getElementById('inpNumber').value.trim();
+  const newSong = {
+    id: Date.now().toString(),
+    title, type, number,
+    images: pendingFiles.map(f => f.dataUrl)
+  };
+  songs.push(newSong);
+  save(); renderList(); closeModal();
+  openSong(newSong.id);
+});
+
+// ─────────────────────────────────────────
+//  File Drop
+// ─────────────────────────────────────────
+function readFile(file) {
+  return new Promise((res) => {
+    const r = new FileReader();
+    r.onload = (e) => res(e.target.result);
+    r.readAsDataURL(file);
+  });
+}
+
+async function handleFiles(files) {
+  for (const file of files) {
+    if (!file.type.startsWith('image/')) continue;
+    const dataUrl = await readFile(file);
+    pendingFiles.push({ name: file.name, dataUrl });
+  }
+  renderFilePreview();
+}
+
+function renderFilePreview() {
+  const fp = document.getElementById('filePreview');
+  fp.innerHTML = '';
+  pendingFiles.forEach((f, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'file-chip';
+    chip.innerHTML = `🖼 ${f.name} <button onclick="removeFile(${i})">✕</button>`;
+    fp.appendChild(chip);
+  });
+}
+
+window.removeFile = (i) => { pendingFiles.splice(i, 1); renderFilePreview(); };
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-active'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-active'));
+dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('drag-active'); handleFiles(e.dataTransfer.files); });
+
+
+// ─────────────────────────────────────────
+//  Hymn Catalog Data (새찬송가 645장)
+// ─────────────────────────────────────────
+const HYMN_DB = [{"n": 1, "t": "만복의 근원 하나님"}, {"n": 2, "t": "찬양 성부 성자 성령"}, {"n": 3, "t": "성부 성자와 성령"}, {"n": 4, "t": "성부 성자와 성령"}, {"n": 5, "t": "이 천지간 만물들아"}, {"n": 6, "t": "목소리 높여서"}, {"n": 7, "t": "성부 성자 성령"}, {"n": 8, "t": "거룩 거룩 거룩 전능하신 주님"}, {"n": 9, "t": "하늘에 가득 찬 영광의 하나님"}, {"n": 10, "t": "전능왕 오셔서"}, {"n": 11, "t": "홀로 한 분 하나님께"}, {"n": 12, "t": "다 함께 주를 경배하세"}, {"n": 13, "t": "영원한 하늘나라"}, {"n": 14, "t": "주 우리 하나님"}, {"n": 15, "t": "하나님의 크신 사랑"}, {"n": 16, "t": "은혜로신 하나님 우리 주 하나님"}, {"n": 17, "t": "사랑의 하나님"}, {"n": 18, "t": "성도들아 찬양하자"}, {"n": 19, "t": "찬송하는 소리 있어"}, {"n": 20, "t": "큰 영광 중에 계신 주"}, {"n": 21, "t": "다 찬양하여라"}, {"n": 22, "t": "만유의 주 앞에"}, {"n": 23, "t": "만 입이 내게 있으면"}, {"n": 24, "t": "왕 되신 주"}, {"n": 25, "t": "면류관 벗어서"}, {"n": 26, "t": "구세주를 아는 이들"}, {"n": 27, "t": "빛나고 높은 보좌와"}, {"n": 28, "t": "복의 근원 강림하사"}, {"n": 29, "t": "성도여 다 함께"}, {"n": 30, "t": "전능하고 놀라우신"}, {"n": 31, "t": "찬양하라 복되신 구세주 예수"}, {"n": 32, "t": "만유의 주재"}, {"n": 33, "t": "영광스런 주를 보라"}, {"n": 34, "t": "참 놀랍도다 주 크신 이름"}, {"n": 35, "t": "큰 영화로신 주"}, {"n": 36, "t": "주 예수 이름 높이어"}, {"n": 37, "t": "주 예수 이름 높이어"}, {"n": 38, "t": "예수 우리 왕이여"}, {"n": 39, "t": "주 은혜를 받으려"}, {"n": 40, "t": "찬송으로 보답할 수 없는"}, {"n": 41, "t": "내 영혼아 주 찬양하여라"}, {"n": 42, "t": "거룩한 주님께"}, {"n": 43, "t": "즐겁게 안식할 날"}, {"n": 44, "t": "지난 이레 동안에"}, {"n": 45, "t": "거룩한 주의 날"}, {"n": 46, "t": "이 날은 주님 정하신"}, {"n": 47, "t": "하늘이 푸르고"}, {"n": 48, "t": "거룩하신 주 하나님"}, {"n": 49, "t": "하나님이 언약하신 그대로"}, {"n": 50, "t": "내게 있는 모든 것을"}, {"n": 51, "t": "주님 주신 거룩한 날"}, {"n": 52, "t": "거룩하신 나의 하나님"}, {"n": 53, "t": "성전을 떠나가기 전"}, {"n": 54, "t": "주여 복을 구하오니"}, {"n": 55, "t": "주 이름으로 모였던"}, {"n": 56, "t": "우리의 주여"}, {"n": 57, "t": "오늘 주신 말씀에"}, {"n": 58, "t": "지난밤에 보호하사"}, {"n": 59, "t": "하나님 아버지 어둔 밤이 지나"}, {"n": 60, "t": "영혼의 햇빛 예수님"}, {"n": 61, "t": "우리가 기다리던"}, {"n": 62, "t": "고요히 머리 숙여"}, {"n": 63, "t": "주가 세상을 다스리니"}, {"n": 64, "t": "기뻐하며 경배하세"}, {"n": 65, "t": "내 영혼아 찬양하라"}, {"n": 66, "t": "다 감사드리세"}, {"n": 67, "t": "영광의 왕께 다 경배하며"}, {"n": 68, "t": "오 하나님 우리의 창조주시니"}, {"n": 69, "t": "온 천하 만물 우러러"}, {"n": 70, "t": "피난처 있으니"}, {"n": 71, "t": "예부터 도움 되시고"}, {"n": 72, "t": "만왕의 왕 앞에 나오라"}, {"n": 73, "t": "내 눈을 들어 두루 살피니"}, {"n": 74, "t": "오 만세 반석이신"}, {"n": 75, "t": "주여 우리 무리를"}, {"n": 76, "t": "창조의 주 아버지께"}, {"n": 77, "t": "거룩하신 하나님"}, {"n": 78, "t": "저 높고 푸른 하늘과"}, {"n": 79, "t": "주 하나님 지으신 모든 세계"}, {"n": 80, "t": "천지에 있는 이름 중"}, {"n": 81, "t": "주는 귀한 보배"}, {"n": 82, "t": "성부의 어린 양이"}, {"n": 83, "t": "나의 맘에 근심 구름"}, {"n": 84, "t": "온 세상이 캄캄하여서"}, {"n": 85, "t": "구주를 생각만 해도"}, {"n": 86, "t": "내가 늘 의지하는 예수"}, {"n": 87, "t": "내 주님 입으신 그 옷은"}, {"n": 88, "t": "내 진정 사모하는"}, {"n": 89, "t": "샤론의 꽃 예수"}, {"n": 90, "t": "주 예수 내가 알기 전"}, {"n": 91, "t": "슬픈 마음 있는 사람"}, {"n": 92, "t": "위에 계신 나의 친구"}, {"n": 93, "t": "예수는 나의 힘이요"}, {"n": 94, "t": "주 예수보다 더 귀한 것은 없네"}, {"n": 95, "t": "나의 기쁨 나의 소망되시며"}, {"n": 96, "t": "예수님은 누구신가"}, {"n": 97, "t": "정혼한 처녀에게"}, {"n": 98, "t": "예수님 오소서"}, {"n": 99, "t": "주님 앞에 떨며 서서"}, {"n": 100, "t": "미리암과 여인들이"}, {"n": 101, "t": "이새의 뿌리에서"}, {"n": 102, "t": "영원한 문아 열려라"}, {"n": 103, "t": "우리 주님 예수께"}, {"n": 104, "t": "곧 오소서 임마누엘"}, {"n": 105, "t": "오랫동안 기다리던"}, {"n": 106, "t": "아기 예수 나셨네"}, {"n": 107, "t": "거룩한 밤 복된 이 밤"}, {"n": 108, "t": "그 어린 주 예수"}, {"n": 109, "t": "고요한 밤 거룩한 밤"}, {"n": 110, "t": "고요하고 거룩한 밤"}, {"n": 111, "t": "귀중한 보배합을"}, {"n": 112, "t": "그 맑고 환한 밤중에"}, {"n": 113, "t": "저 아기 잠이 들었네"}, {"n": 114, "t": "그 어린 주 예수"}, {"n": 115, "t": "기쁘다 구주 오셨네"}, {"n": 116, "t": "동방에서 박사들"}, {"n": 117, "t": "만백성 기뻐하여라"}, {"n": 118, "t": "영광 나라 천사들아"}, {"n": 119, "t": "옛날 임금 다윗성에"}, {"n": 120, "t": "오 베들레헴 작은 골"}, {"n": 121, "t": "우리 구주 나신 날"}, {"n": 122, "t": "참 반가운 성도여"}, {"n": 123, "t": "저 들 밖에 한밤중에"}, {"n": 124, "t": "양 지키는 목자여"}, {"n": 125, "t": "천사들의 노래가"}, {"n": 126, "t": "천사 찬송하기를"}, {"n": 127, "t": "그 고요하고 쓸쓸한"}, {"n": 128, "t": "거룩하신 우리 주님"}, {"n": 129, "t": "마리아는 아기를"}, {"n": 130, "t": "찬란한 주의 영광은"}, {"n": 131, "t": "다 나와 찬송 부르세"}, {"n": 132, "t": "주의 영광 빛나니"}, {"n": 133, "t": "하나님의 말씀으로"}, {"n": 134, "t": "나 어느 날 꿈속을 헤매며"}, {"n": 135, "t": "어저께나 오늘이나"}, {"n": 136, "t": "가나의 혼인 잔치"}, {"n": 137, "t": "하나님의 아들이"}, {"n": 138, "t": "햇빛을 받는 곳마다"}, {"n": 139, "t": "오 영원한 내 주 예수"}, {"n": 140, "t": "왕 되신 우리 주께"}, {"n": 141, "t": "호산나 호산나"}, {"n": 142, "t": "시온에 오시는 주"}, {"n": 143, "t": "웬 말인가 날 위하여"}, {"n": 144, "t": "예수 나를 위하여"}, {"n": 145, "t": "오 거룩하신 주님"}, {"n": 146, "t": "저 멀리 푸른 언덕에"}, {"n": 147, "t": "거기 너 있었는가"}, {"n": 148, "t": "영화로운 주 예수의"}, {"n": 149, "t": "주 달려 죽은 십자가"}, {"n": 150, "t": "갈보리산 위에"}, {"n": 151, "t": "만왕의 왕 내 주께서"}, {"n": 152, "t": "귀하신 예수"}, {"n": 153, "t": "가시 면류관"}, {"n": 154, "t": "생명의 주여 면류관"}, {"n": 155, "t": "십자가 지고"}, {"n": 156, "t": "머리에 가시관 붉은 피 흐르는"}, {"n": 157, "t": "겟세마네 동산에서 최후 기도"}, {"n": 158, "t": "서쪽 하늘 붉은 노을"}, {"n": 159, "t": "기뻐 찬송하세"}, {"n": 160, "t": "무덤에 머물러"}, {"n": 161, "t": "할렐루야 우리 예수"}, {"n": 162, "t": "부활하신 구세주"}, {"n": 163, "t": "할렐루야 할렐루야"}, {"n": 164, "t": "예수 부활했으니"}, {"n": 165, "t": "주님께 영광"}, {"n": 166, "t": "싸움은 모두 끝나고"}, {"n": 167, "t": "즐겁도다 이 날"}, {"n": 168, "t": "하늘에 찬송이 들리던 그 날"}, {"n": 169, "t": "사망의 권세가"}, {"n": 170, "t": "내 주님은 살아계셔"}, {"n": 171, "t": "하나님의 독생자"}, {"n": 172, "t": "사망을 이긴 주"}, {"n": 173, "t": "다 함께 찬송 부르자"}, {"n": 174, "t": "대속하신 구주께서"}, {"n": 175, "t": "신랑 되신 예수께서"}, {"n": 176, "t": "주 어느 때 다시 오실는지"}, {"n": 177, "t": "오랫동안 고대하던"}, {"n": 178, "t": "주 예수 믿는 자여"}, {"n": 179, "t": "주 예수의 강림이"}, {"n": 180, "t": "하나님의 나팔 소리"}, {"n": 181, "t": "부활 승천하신 주께서"}, {"n": 182, "t": "강물같이 흐르는 기쁨"}, {"n": 183, "t": "빈 들에 마른 풀같이"}, {"n": 184, "t": "불길 같은 주 성령"}, {"n": 185, "t": "이 기쁜 소식을"}, {"n": 186, "t": "영화로신 주 성령"}, {"n": 187, "t": "비둘기같이 온유한"}, {"n": 188, "t": "무한하신 주 성령"}, {"n": 189, "t": "진실하신 주 성령"}, {"n": 190, "t": "성령이여 강림하사"}, {"n": 191, "t": "내가 매일 기쁘게"}, {"n": 192, "t": "임하소서 임하소서"}, {"n": 193, "t": "성령의 봄바람 불어오니"}, {"n": 194, "t": "저 하늘 거룩하신 주여"}, {"n": 195, "t": "성령이여 우리 찬송 부를 때"}, {"n": 196, "t": "성령의 은사를"}, {"n": 197, "t": "은혜가 풍성한 하나님은"}, {"n": 198, "t": "주 예수 해변서"}, {"n": 199, "t": "나의 사랑하는 책"}, {"n": 200, "t": "달고 오묘한 그 말씀"}, {"n": 201, "t": "참 사람 되신 말씀"}, {"n": 202, "t": "하나님 아버지 주신 책은"}, {"n": 203, "t": "하나님의 말씀은"}, {"n": 204, "t": "주의 말씀 듣고서"}, {"n": 205, "t": "주 예수 크신 사랑"}, {"n": 206, "t": "주님의 귀한 말씀은"}, {"n": 207, "t": "귀하신 주님 계신 곳"}, {"n": 208, "t": "내 주의 나라와"}, {"n": 209, "t": "이 세상 풍파 심하고"}, {"n": 210, "t": "시온성과 같은 교회"}, {"n": 211, "t": "값비싼 향유를 주께 드린"}, {"n": 212, "t": "겸손히 주를 섬길 때"}, {"n": 213, "t": "나의 생명 드리니"}, {"n": 214, "t": "나 주의 도움 받고자"}, {"n": 215, "t": "내 죄 속해 주신 주께"}, {"n": 216, "t": "성자의 귀한 몸"}, {"n": 217, "t": "하나님이 말씀하시기를"}, {"n": 218, "t": "네 맘과 정성을 다하여서"}, {"n": 219, "t": "주 하나님의 사랑은"}, {"n": 220, "t": "사랑하는 주님 앞에"}, {"n": 221, "t": "주 믿는 형제들"}, {"n": 222, "t": "우리 다시 만날 때까지"}, {"n": 223, "t": "하나님은 우리들의"}, {"n": 224, "t": "정한 물로 우리 죄를"}, {"n": 225, "t": "실로암 샘물가에 핀"}, {"n": 226, "t": "성령으로 세례 받아"}, {"n": 227, "t": "주 앞에 성찬 받기 위하여"}, {"n": 228, "t": "오 나의 주님 친히 뵈오니"}, {"n": 229, "t": "아무 흠도 없고"}, {"n": 230, "t": "우리의 참되신 구주시니"}, {"n": 231, "t": "우리 다 같이 무릎 꿇고서"}, {"n": 232, "t": "유월절 때가 이르러"}, {"n": 233, "t": "자비로 그 몸 찢기시고"}, {"n": 234, "t": "구주 예수 그리스도"}, {"n": 235, "t": "보아라 즐거운 우리 집"}, {"n": 236, "t": "우리 모든 수고 끝나"}, {"n": 237, "t": "저 건너편 강 언덕에"}, {"n": 238, "t": "해 지는 저편"}, {"n": 239, "t": "저 뵈는 본향 집"}, {"n": 240, "t": "주가 맡긴 모든 역사"}, {"n": 241, "t": "아름다운 본향"}, {"n": 242, "t": "황무지가 장미꽃같이"}, {"n": 243, "t": "저 요단강 건너편에"}, {"n": 244, "t": "구원 받은 천국의 성도들"}, {"n": 245, "t": "저 좋은 낙원 이르니"}, {"n": 246, "t": "나 가나안 땅 귀한 성에"}, {"n": 247, "t": "보아라 저 하늘에"}, {"n": 248, "t": "언약의 주 하나님"}, {"n": 249, "t": "주 사랑하는 자 다 찬송할 때에"}, {"n": 250, "t": "구주의 십자가 보혈로"}, {"n": 251, "t": "놀랍다 주님의 큰 은혜"}, {"n": 252, "t": "나의 죄를 씻기는"}, {"n": 253, "t": "그 자비하신 주님"}, {"n": 254, "t": "내 주의 보혈은"}, {"n": 255, "t": "너희 죄 흉악하나"}, {"n": 256, "t": "나의 죄 모두 지신 주님"}, {"n": 257, "t": "마음에 가득한 의심을 깨치고"}, {"n": 258, "t": "샘물과 같은 보혈은"}, {"n": 259, "t": "예수 십자가에 흘린 피로써"}, {"n": 260, "t": "우리를 죄에서 구하시려"}, {"n": 261, "t": "이 세상의 모든 죄를"}, {"n": 262, "t": "날 구원하신 예수님"}, {"n": 263, "t": "이 세상 험하고"}, {"n": 264, "t": "정결하게 하는 샘이"}, {"n": 265, "t": "주 십자가를 지심으로"}, {"n": 266, "t": "주의 피로 이룬 샘물"}, {"n": 267, "t": "주의 확실한 약속의 말씀 듣고"}, {"n": 268, "t": "죄에서 자유를 얻게 함은"}, {"n": 269, "t": "그 참혹한 십자가에"}, {"n": 270, "t": "변찮는 주님의 사랑과"}, {"n": 271, "t": "나와 같은 죄인 위해"}, {"n": 272, "t": "고통의 멍에 벗으려고"}, {"n": 273, "t": "나 주를 멀리 떠났다"}, {"n": 274, "t": "나 행한 것 죄뿐이니"}, {"n": 275, "t": "날마다 주와 멀어져"}, {"n": 276, "t": "아버지여 이 죄인을"}, {"n": 277, "t": "양떼를 떠나서"}, {"n": 278, "t": "여러 해 동안 주 떠나"}, {"n": 279, "t": "인애하신 구세주여"}, {"n": 280, "t": "천부여 의지 없어서"}, {"n": 281, "t": "요나처럼 순종않고"}, {"n": 282, "t": "큰 죄에 빠진 날 위해"}, {"n": 283, "t": "나 속죄함을 받은 후"}, {"n": 284, "t": "오랫동안 모든 죄 가운데 빠져"}, {"n": 285, "t": "주의 말씀 받은 그 날"}, {"n": 286, "t": "주 예수님 내 맘에 오사"}, {"n": 287, "t": "예수 앞에 나오면"}, {"n": 288, "t": "예수를 나의 구주 삼고"}, {"n": 289, "t": "주 예수 내 맘에 들어와"}, {"n": 290, "t": "우리는 주님을 늘 배반하나"}, {"n": 291, "t": "외롭게 사는 이 그 누군가"}, {"n": 292, "t": "주 없이 살 수 없네"}, {"n": 293, "t": "주의 사랑 비칠 때에"}, {"n": 294, "t": "하나님은 외아들을"}, {"n": 295, "t": "큰 죄에 빠진 나를"}, {"n": 296, "t": "죄인 구원하시려고"}, {"n": 297, "t": "양 아흔아홉 마리는"}, {"n": 298, "t": "속죄하신 구세주를"}, {"n": 299, "t": "하나님 사랑은"}, {"n": 300, "t": "내 맘이 낙심되며"}, {"n": 301, "t": "지금까지 지내온 것"}, {"n": 302, "t": "내 주 하나님 넓고 큰 은혜는"}, {"n": 303, "t": "날 위하여 십자가의"}, {"n": 304, "t": "그 크신 하나님의 사랑"}, {"n": 305, "t": "나 같은 죄인 살리신"}, {"n": 306, "t": "죽을 죄인 살려주신"}, {"n": 307, "t": "소리 없이 보슬보슬"}, {"n": 308, "t": "내 평생 살아온 길"}, {"n": 309, "t": "목마른 내 영혼"}, {"n": 310, "t": "아 하나님의 은혜로"}, {"n": 311, "t": "내 너를 위하여"}, {"n": 312, "t": "너 하나님께 이끌리어"}, {"n": 313, "t": "내 임금 예수 내 주여"}, {"n": 314, "t": "내 구주 예수를 더욱 사랑"}, {"n": 315, "t": "내 주 되신 주를 참 사랑하고"}, {"n": 316, "t": "주여 나의 생명"}, {"n": 317, "t": "내 주 예수 주신 은혜"}, {"n": 318, "t": "순교자의 흘린 피가"}, {"n": 319, "t": "말씀으로 이 세상을"}, {"n": 320, "t": "나의 죄를 정케 하사"}, {"n": 321, "t": "날 대속하신 예수께"}, {"n": 322, "t": "세상의 헛된 신을 버리고"}, {"n": 323, "t": "부름 받아 나선 이 몸"}, {"n": 324, "t": "예수 나를 오라 하네"}, {"n": 325, "t": "예수가 함께 계시니"}, {"n": 326, "t": "내 죄를 회개하고"}, {"n": 327, "t": "주님 주실 화평"}, {"n": 328, "t": "너 주의 사람아"}, {"n": 329, "t": "주 날 불러 이르소서"}, {"n": 330, "t": "어둔 밤 쉬 되리니"}, {"n": 331, "t": "영광을 받으신 만유의 주여"}, {"n": 332, "t": "우리는 부지런한"}, {"n": 333, "t": "충성하라 죽도록"}, {"n": 334, "t": "위대하신 주를"}, {"n": 335, "t": "크고 놀라운 평화가"}, {"n": 336, "t": "환난과 핍박 중에도"}, {"n": 337, "t": "내 모든 시험 무거운 짐을"}, {"n": 338, "t": "내 주를 가까이 하게 함은"}, {"n": 339, "t": "내 주님 지신 십자가"}, {"n": 340, "t": "어지러운 세상 중에"}, {"n": 341, "t": "십자가를 내가 지고"}, {"n": 342, "t": "너 시험을 당해"}, {"n": 343, "t": "시험 받을 때에"}, {"n": 344, "t": "믿음으로 가리라"}, {"n": 345, "t": "캄캄한 밤 사나운 바람 불 때"}, {"n": 346, "t": "주 예수 우리 구하려"}, {"n": 347, "t": "허락하신 새 땅에"}, {"n": 348, "t": "마귀들과 싸울지라"}, {"n": 349, "t": "나는 예수 따라가는"}, {"n": 350, "t": "우리들이 싸울 것은"}, {"n": 351, "t": "믿는 사람들은 주의 군사니"}, {"n": 352, "t": "십자가 군병들아"}, {"n": 353, "t": "십자가 군병 되어서"}, {"n": 354, "t": "주를 앙모하는 자"}, {"n": 355, "t": "다 같이 일어나"}, {"n": 356, "t": "주 예수 이름 소리 높여"}, {"n": 357, "t": "주 믿는 사람 일어나"}, {"n": 358, "t": "주의 진리 위해 십자가 군기"}, {"n": 359, "t": "천성을 향해 가는 성도들아"}, {"n": 360, "t": "행군 나팔 소리에"}, {"n": 361, "t": "기도하는 이 시간"}, {"n": 362, "t": "주여 복을 주시기를"}, {"n": 363, "t": "내가 깊은 곳에서"}, {"n": 364, "t": "내 기도하는 그 시간"}, {"n": 365, "t": "마음속에 근심 있는 사람"}, {"n": 366, "t": "어두운 내 눈 밝히사"}, {"n": 367, "t": "인내하게 하소서 주여 우리를"}, {"n": 368, "t": "주 예수여 은혜를"}, {"n": 369, "t": "죄짐 맡은 우리 구주"}, {"n": 370, "t": "주 안에 있는 나에게"}, {"n": 371, "t": "구주여 광풍이 불어"}, {"n": 372, "t": "그 누가 나의 괴롬 알며"}, {"n": 373, "t": "고요한 바다로"}, {"n": 374, "t": "나의 믿음 약할 때"}, {"n": 375, "t": "나는 갈 길 모르니"}, {"n": 376, "t": "나그네와 같은 내가"}, {"n": 377, "t": "전능하신 주 하나님"}, {"n": 378, "t": "내 선한 목자"}, {"n": 379, "t": "내 갈 길 멀고 밤은 깊은데"}, {"n": 380, "t": "나의 생명 되신 주"}, {"n": 381, "t": "나 캄캄한 밤 죄의 길에"}, {"n": 382, "t": "너 근심 걱정 말아라"}, {"n": 383, "t": "눈을 들어 산을 보니"}, {"n": 384, "t": "나의 갈 길 다 가도록"}, {"n": 385, "t": "못 박혀 죽으신"}, {"n": 386, "t": "만세 반석 열린 곳에"}, {"n": 387, "t": "멀리 멀리 갔더니"}, {"n": 388, "t": "비바람이 칠 때와"}, {"n": 389, "t": "내게로 오라 하신 주님의"}, {"n": 390, "t": "예수가 거느리시니"}, {"n": 391, "t": "오 놀라운 구세주"}, {"n": 392, "t": "주여 어린 사슴이"}, {"n": 393, "t": "오 신실하신 주"}, {"n": 394, "t": "이 세상의 친구들"}, {"n": 395, "t": "자비하신 예수여"}, {"n": 396, "t": "우리 주님 밤새워"}, {"n": 397, "t": "주 사랑 안에 살면"}, {"n": 398, "t": "어둠의 권세에서"}, {"n": 399, "t": "어린 양들아 두려워 말아라"}, {"n": 400, "t": "험한 시험 물 속에서"}, {"n": 401, "t": "주의 곁에 있을 때"}, {"n": 402, "t": "나의 반석 나의 방패"}, {"n": 403, "t": "영원하신 주님의"}, {"n": 404, "t": "바다에 놀이 일 때에"}, {"n": 405, "t": "주의 친절한 팔에 안기세"}, {"n": 406, "t": "곤한 내 영혼 편히 쉴 곳과"}, {"n": 407, "t": "구주와 함께 나 죽었으니"}, {"n": 408, "t": "나 어느 곳에 있든지"}, {"n": 409, "t": "나의 기쁨은 사랑의 주님께"}, {"n": 410, "t": "내 맘에 한 노래 있어"}, {"n": 411, "t": "아 내 맘속에"}, {"n": 412, "t": "내 영혼의 그윽히 깊은 데서"}, {"n": 413, "t": "내 평생에 가는 길"}, {"n": 414, "t": "이 세상은 요란하나"}, {"n": 415, "t": "십자가 그늘 아래"}, {"n": 416, "t": "너희 근심 걱정을"}, {"n": 417, "t": "주 예수 넓은 품에"}, {"n": 418, "t": "기쁠 때나 슬플 때나"}, {"n": 419, "t": "주 날개 밑 내가 편안히 쉬네"}, {"n": 420, "t": "너 성결키 위해"}, {"n": 421, "t": "내가 예수 믿고서"}, {"n": 422, "t": "거룩하게 하소서"}, {"n": 423, "t": "먹보다도 더 검은"}, {"n": 424, "t": "아버지여 나의 맘을"}, {"n": 425, "t": "주님의 뜻을 이루소서"}, {"n": 426, "t": "이 죄인을 완전케 하시옵고"}, {"n": 427, "t": "맘 가난한 사람"}, {"n": 428, "t": "내 영혼에 햇빛 비치니"}, {"n": 429, "t": "세상 모든 풍파 너를 흔들어"}, {"n": 430, "t": "주와 같이 길 가는 것"}, {"n": 431, "t": "주 안에 기쁨 있네"}, {"n": 432, "t": "큰 물결이 설레는 어둔 바다"}, {"n": 433, "t": "귀하신 주여 날 붙드사"}, {"n": 434, "t": "귀하신 친구 내게 계시니"}, {"n": 435, "t": "나의 영원하신 기업"}, {"n": 436, "t": "나 이제 주님의 새 생명 얻은 몸"}, {"n": 437, "t": "하늘 보좌 떠나서"}, {"n": 438, "t": "내 영혼이 은총 입어"}, {"n": 439, "t": "십자가로 가까이"}, {"n": 440, "t": "어디든지 예수 나를 이끌면"}, {"n": 441, "t": "은혜 구한 내게 은혜의 주님"}, {"n": 442, "t": "저 장미꽃 위에 이슬"}, {"n": 443, "t": "아침 햇살 비칠 때"}, {"n": 444, "t": "겟세마네 동산에서"}, {"n": 445, "t": "태산을 넘어 험곡에 가도"}, {"n": 446, "t": "주 음성 외에는"}, {"n": 447, "t": "이 세상 끝날까지"}, {"n": 448, "t": "주님 가신 길을 따라"}, {"n": 449, "t": "예수 따라가며"}, {"n": 450, "t": "내 평생 소원 이것뿐"}, {"n": 451, "t": "예수 영광 버리사"}, {"n": 452, "t": "내 모든 소원 기도의 제목"}, {"n": 453, "t": "예수 더 알기 원하네"}, {"n": 454, "t": "주와 같이 되기를"}, {"n": 455, "t": "주님의 마음을 본받는 자"}, {"n": 456, "t": "거친 세상에서 실패하거든"}, {"n": 457, "t": "겟세마네 동산의"}, {"n": 458, "t": "너희 마음에 슬픔이 가득할 때"}, {"n": 459, "t": "누가 주를 따라"}, {"n": 460, "t": "뜻 없이 무릎 꿇는"}, {"n": 461, "t": "십자가를 질 수 있나"}, {"n": 462, "t": "생명 진리 은혜 되신"}, {"n": 463, "t": "신자 되기 원합니다"}, {"n": 464, "t": "믿음의 새 빛을"}, {"n": 465, "t": "주 믿는 나 남 위해"}, {"n": 466, "t": "죽기까지 사랑하신 주"}, {"n": 467, "t": "높으신 주께서 낮아지심은"}, {"n": 468, "t": "큰 사랑의 새 계명을"}, {"n": 469, "t": "내 주 하나님"}, {"n": 470, "t": "나의 몸이 상하여"}, {"n": 471, "t": "주여 나의 병든 몸을"}, {"n": 472, "t": "네 병든 손 내밀라고"}, {"n": 473, "t": "괴로움과 고통을"}, {"n": 474, "t": "의원 되신 예수님의"}, {"n": 475, "t": "인류는 하나 되게"}, {"n": 476, "t": "꽃이 피고 새가 우는"}, {"n": 477, "t": "하나님이 창조하신"}, {"n": 478, "t": "참 아름다워라"}, {"n": 479, "t": "괴로운 인생길 가는 몸이"}, {"n": 480, "t": "천국에서 만나보자"}, {"n": 481, "t": "때 저물어서 날이 어두니"}, {"n": 482, "t": "참 즐거운 노래를"}, {"n": 483, "t": "구름 같은 이 세상"}, {"n": 484, "t": "내 맘의 주여 소망되소서"}, {"n": 485, "t": "세월이 흘러가는데"}, {"n": 486, "t": "이 세상에 근심된 일이 많고"}, {"n": 487, "t": "어두움 후에 빛이 오며"}, {"n": 488, "t": "이 몸의 소망 무언가"}, {"n": 489, "t": "저 요단강 건너편에 찬란하게"}, {"n": 490, "t": "주여 지난밤 내 꿈에"}, {"n": 491, "t": "저 높은 곳을 향하여"}, {"n": 492, "t": "잠시 세상에 내가 살면서"}, {"n": 493, "t": "하늘 가는 밝은 길이"}, {"n": 494, "t": "만세 반석 열리니"}, {"n": 495, "t": "익은 곡식 거둘 자가"}, {"n": 496, "t": "새벽부터 우리"}, {"n": 497, "t": "주 예수 넓은 사랑"}, {"n": 498, "t": "저 죽어가는 자 다 구원하고"}, {"n": 499, "t": "흑암에 사는 백성들을 보라"}, {"n": 500, "t": "물 위에 생명줄 던지어라"}, {"n": 501, "t": "너 시온아 이 소식 전파하라"}, {"n": 502, "t": "빛의 사자들이여"}, {"n": 503, "t": "세상 모두 사랑 없어"}, {"n": 504, "t": "주님의 명령 전할 사자여"}, {"n": 505, "t": "온 세상 위하여"}, {"n": 506, "t": "땅 끝까지 복음을"}, {"n": 507, "t": "저 북방 얼음산과"}, {"n": 508, "t": "우리가 지금은 나그네 되어도"}, {"n": 509, "t": "기쁜 일이 있어 천국 종 치네"}, {"n": 510, "t": "하나님의 진리 등대"}, {"n": 511, "t": "예수 말씀하시기를"}, {"n": 512, "t": "천성길을 버리고"}, {"n": 513, "t": "헛된 욕망 길을 가며"}, {"n": 514, "t": "먼동 튼다 일어나라"}, {"n": 515, "t": "눈을 들어 하늘 보라"}, {"n": 516, "t": "옳은 길 따르라 의의 길을"}, {"n": 517, "t": "가난한 자 돌봐주며"}, {"n": 518, "t": "기쁜 소리 들리니"}, {"n": 519, "t": "구주께서 부르되"}, {"n": 520, "t": "듣는 사람마다 복음 전하여"}, {"n": 521, "t": "구원으로 인도하는"}, {"n": 522, "t": "웬일인가 내 형제여"}, {"n": 523, "t": "어둔 죄악 길에서"}, {"n": 524, "t": "갈 길을 밝히 보이시니"}, {"n": 525, "t": "돌아와 돌아와"}, {"n": 526, "t": "목마른 자들아"}, {"n": 527, "t": "어서 돌아오오"}, {"n": 528, "t": "예수가 우리를 부르는 소리"}, {"n": 529, "t": "온유한 주님의 음성"}, {"n": 530, "t": "주께서 문에 오셔서"}, {"n": 531, "t": "자비한 주께서 부르시네"}, {"n": 532, "t": "주께로 한 걸음씩"}, {"n": 533, "t": "우리 주 십자가"}, {"n": 534, "t": "주님 찾아오셨네"}, {"n": 535, "t": "주 예수 대문 밖에"}, {"n": 536, "t": "죄짐에 눌린 사람은"}, {"n": 537, "t": "형제여 지체 말라"}, {"n": 538, "t": "죄짐을 지고서 곤하거든"}, {"n": 539, "t": "너 예수께 조용히 나가"}, {"n": 540, "t": "주의 음성을 내가 들으니"}, {"n": 541, "t": "꽃이 피는 봄날에만"}, {"n": 542, "t": "구주 예수 의지함이"}, {"n": 543, "t": "어려운 일 당할 때"}, {"n": 544, "t": "울어도 못하네"}, {"n": 545, "t": "이 눈에 아무 증거 아니 뵈어도"}, {"n": 546, "t": "주님 약속하신 말씀 위에 서"}, {"n": 547, "t": "나 같은 죄인까지도"}, {"n": 548, "t": "날 구속하신"}, {"n": 549, "t": "내 주여 뜻대로"}, {"n": 550, "t": "시온의 영광이 빛나는 아침"}, {"n": 551, "t": "오늘까지 복과 은혜"}, {"n": 552, "t": "아침 해가 돋을 때"}, {"n": 553, "t": "새해 아침 환히 밝았네"}, {"n": 554, "t": "종소리 크게 울려라"}, {"n": 555, "t": "우리 주님 모신 가정"}, {"n": 556, "t": "날마다 주님을 의지하는"}, {"n": 557, "t": "에덴의 동산처럼"}, {"n": 558, "t": "미더워라 주의 가정"}, {"n": 559, "t": "사철에 봄바람 불어 잇고"}, {"n": 560, "t": "주의 발자취를 따름이"}, {"n": 561, "t": "예수님의 사랑은"}, {"n": 562, "t": "예루살렘 아이들"}, {"n": 563, "t": "예수 사랑하심을"}, {"n": 564, "t": "예수께서 오실 때에"}, {"n": 565, "t": "예수께로 가면"}, {"n": 566, "t": "사랑의 하나님 귀하신 이름은"}, {"n": 567, "t": "다정하신 목자 예수"}, {"n": 568, "t": "하나님은 나의 목자시니"}, {"n": 569, "t": "선한 목자 되신 우리 주"}, {"n": 570, "t": "주는 나를 기르시는 목자"}, {"n": 571, "t": "역사 속에 보냄 받아"}, {"n": 572, "t": "바다같이 넓은 은혜"}, {"n": 573, "t": "말씀에 순종하여"}, {"n": 574, "t": "가슴마다 파도친다"}, {"n": 575, "t": "주님께 귀한 것 드려"}, {"n": 576, "t": "하나님의 뜻을 따라"}, {"n": 577, "t": "낳으시고 길러주신"}, {"n": 578, "t": "언제나 바라봐도"}, {"n": 579, "t": "어머니의 넓은 사랑"}, {"n": 580, "t": "삼천리 반도 금수강산"}, {"n": 581, "t": "주 하나님 이 나라를 지켜주시고"}, {"n": 582, "t": "어둔 밤 마음에 잠겨"}, {"n": 583, "t": "이 민족에 복음을"}, {"n": 584, "t": "우리나라 지켜주신"}, {"n": 585, "t": "내 주는 강한 성이요"}, {"n": 586, "t": "어느 민족 누구게나"}, {"n": 587, "t": "감사하는 성도여"}, {"n": 588, "t": "공중 나는 새를 보라"}, {"n": 589, "t": "넓은 들에 익은 곡식"}, {"n": 590, "t": "논밭에 오곡백과"}, {"n": 591, "t": "저 밭에 농부 나가"}, {"n": 592, "t": "산마다 불이 탄다 고운 단풍에"}, {"n": 593, "t": "아름다운 하늘과"}, {"n": 594, "t": "감사하세 찬양하세"}, {"n": 595, "t": "나 맡은 본분은"}, {"n": 596, "t": "영광은 주님 홀로"}, {"n": 597, "t": "이전에 주님을 내가 몰라"}, {"n": 598, "t": "천지 주관하는 주님"}, {"n": 599, "t": "우리의 기도 들어주시옵소서"}, {"n": 600, "t": "교회의 참된 터는"}, {"n": 601, "t": "하나님이 정하시고"}, {"n": 602, "t": "성부님께 빕니다. (통"}, {"n": 603, "t": "태초에 하나님이"}, {"n": 604, "t": "완전한 사랑"}, {"n": 605, "t": "오늘 모여 찬송함은"}, {"n": 606, "t": "해보다 더 밝은 저 천국"}, {"n": 607, "t": "내 본향 가는 길"}, {"n": 608, "t": "후일에 생명 그칠 때"}, {"n": 609, "t": "이 세상 살 때에"}, {"n": 610, "t": "고생과 수고가 다 지난 후"}, {"n": 611, "t": "주님 오라 부르시어"}, {"n": 612, "t": "이 땅에서 주를 위해"}, {"n": 613, "t": "사랑의 주 하나님"}, {"n": 614, "t": "얼마나 아프셨나"}, {"n": 615, "t": "그 큰 일을 행하신"}, {"n": 616, "t": "주를 경배하리"}, {"n": 617, "t": "주님을 찬양합니다"}, {"n": 618, "t": "나 주님을 사랑합니다"}, {"n": 619, "t": "놀라운 그 이름"}, {"n": 620, "t": "여기에 모인 우리"}, {"n": 621, "t": "찬양하라 내 영혼아"}, {"n": 622, "t": "거룩한 밤"}, {"n": 623, "t": "주님의 시간에"}, {"n": 624, "t": "우리 모두 찬양해"}, {"n": 625, "t": "거룩 거룩 거룩한 하나님"}, {"n": 626, "t": "만민들아 다 경배하라"}, {"n": 627, "t": "할렐루야 할렐루야 다 함께"}, {"n": 628, "t": "아멘 아멘 아멘 영광과 존귀를"}, {"n": 629, "t": "거룩 거룩 거룩"}, {"n": 630, "t": "진리와 생명 되신 주"}, {"n": 631, "t": "우리 기도를"}, {"n": 632, "t": "주여 주여 우리를"}, {"n": 633, "t": "나의 하나님 받으소서"}, {"n": 634, "t": "모든 것이 주께로부터"}, {"n": 635, "t": "하늘에 계신"}, {"n": 636, "t": "하늘에 계신"}, {"n": 637, "t": "주님 우리의 마음을 여시어"}, {"n": 638, "t": "주 너를 지키시고"}, {"n": 639, "t": "주 함께하소서"}, {"n": 640, "t": "아멘"}, {"n": 641, "t": "아멘"}, {"n": 642, "t": "아멘"}, {"n": 643, "t": "아멘"}, {"n": 644, "t": "아멘"}, {"n": 645, "t": "아멘"}];
+
+// Gospel songs placeholder (사용자 추가 가능)
+const GOSPEL_DB = [{"t": "I Love You Lord (주를 사랑해)", "a": "", "n": 1}, {"t": "You Are My All In All", "a": "", "n": 2}, {"t": "가장 높은 곳에서", "a": "예수전도단", "n": 3}, {"t": "갈망 (주 앞에 엎드리네)", "a": "예수전도단", "n": 4}, {"t": "감사해요", "a": "", "n": 5}, {"t": "강물처럼 흘러넘쳐", "a": "", "n": 6}, {"t": "거룩하신 주의 빛", "a": "", "n": 7}, {"t": "거룩하신 하나님", "a": "예수전도단", "n": 8}, {"t": "거룩하신 하나님 (Holy Lord)", "a": "", "n": 9}, {"t": "거룩함으로", "a": "", "n": 10}, {"t": "겸손히 주를 섬길 때", "a": "", "n": 11}, {"t": "경배합니다", "a": "두란노", "n": 12}, {"t": "고백", "a": "소리엘", "n": 13}, {"t": "고백합니다", "a": "", "n": 14}, {"t": "광야를 지나며", "a": "", "n": 15}, {"t": "구름 기둥 불 기둥", "a": "", "n": 16}, {"t": "구원의 기쁨", "a": "", "n": 17}, {"t": "귀하신 주님 내가 주를 사랑해", "a": "", "n": 18}, {"t": "그 사랑 얼마나", "a": "", "n": 19}, {"t": "그 크신 사랑", "a": "", "n": 20}, {"t": "그리고 지금", "a": "", "n": 21}, {"t": "기도", "a": "박종호", "n": 22}, {"t": "기도합니다", "a": "", "n": 23}, {"t": "기쁨으로 주를 섬기세", "a": "", "n": 24}, {"t": "나 같은 죄인을 왜", "a": "", "n": 25}, {"t": "나 무엇과도 주님을 바꾸지 않으리", "a": "", "n": 26}, {"t": "나 어디 있든지", "a": "", "n": 27}, {"t": "나 이제 주님만 섬기겠네", "a": "", "n": 28}, {"t": "나 주의 손에 이끌리어", "a": "", "n": 29}, {"t": "나는 자유 해", "a": "", "n": 30}, {"t": "나는 주의 것이오니", "a": "", "n": 31}, {"t": "나를 지으신 주님", "a": "", "n": 32}, {"t": "나를 향한 주의 사랑", "a": "", "n": 33}, {"t": "나의 가는 길", "a": "", "n": 34}, {"t": "나의 기쁨 나의 소망", "a": "", "n": 35}, {"t": "나의 믿음 주님을 향해", "a": "", "n": 36}, {"t": "나의 삶 드리네", "a": "", "n": 37}, {"t": "나의 안에 거하라", "a": "예수전도단", "n": 38}, {"t": "나의 영이 주를 찬양해", "a": "", "n": 39}, {"t": "나의 주 나의 하나님이여", "a": "", "n": 40}, {"t": "나의 찬미 받으시기에 합당한 주", "a": "", "n": 41}, {"t": "나의 하나님", "a": "예수전도단", "n": 42}, {"t": "낮아지신 주님", "a": "소리엘", "n": 43}, {"t": "낮은 자의 하나님", "a": "소리엘", "n": 44}, {"t": "내 맘의 내 주여", "a": "", "n": 45}, {"t": "내 삶 내 모든 것", "a": "", "n": 46}, {"t": "내 삶을 드리리", "a": "", "n": 47}, {"t": "내 삶의 이유", "a": "", "n": 48}, {"t": "내 영혼아 찬양하라", "a": "", "n": 49}, {"t": "내 인생 주관하시고", "a": "", "n": 50}, {"t": "내 주 안에 있는 기쁨", "a": "", "n": 51}, {"t": "내 주를 가까이 하게 함은", "a": "", "n": 52}, {"t": "내가 가장 사랑하는 것", "a": "", "n": 53}, {"t": "내가 그리스도와 함께", "a": "", "n": 54}, {"t": "내가 만난 하나님", "a": "", "n": 55}, {"t": "내가 매일 기쁘게", "a": "", "n": 56}, {"t": "내가 영으로", "a": "박종호", "n": 57}, {"t": "내가 주인 삼은", "a": "", "n": 58}, {"t": "너는 내 것이라", "a": "", "n": 59}, {"t": "너를 향한 나의 노래", "a": "", "n": 60}, {"t": "능력의 주", "a": "", "n": 61}, {"t": "다 드리리", "a": "", "n": 62}, {"t": "다시 일어나", "a": "", "n": 63}, {"t": "다시 한번", "a": "", "n": 64}, {"t": "당신만이", "a": "", "n": 65}, {"t": "당신은 사랑 받기 위해 태어난 사람", "a": "", "n": 66}, {"t": "더 가까이", "a": "", "n": 67}, {"t": "두 손 들고 찬양합니다", "a": "", "n": 68}, {"t": "때로는 주님의 뜻을 몰라", "a": "", "n": 69}, {"t": "떠나지 않으시는 하나님", "a": "", "n": 70}, {"t": "마음 속에 주를 향한 불이", "a": "", "n": 71}, {"t": "마음을 다해", "a": "", "n": 72}, {"t": "마음이 상한 자를", "a": "", "n": 73}, {"t": "많은 사람들이 흑암 중에", "a": "", "n": 74}, {"t": "모든 것 드리리", "a": "", "n": 75}, {"t": "모든 능력과 모든 권세", "a": "", "n": 76}, {"t": "목마른 내 영혼 주 앞에", "a": "", "n": 77}, {"t": "목마른 사슴", "a": "", "n": 78}, {"t": "무릎 꿇고서", "a": "", "n": 79}, {"t": "믿음의 주요", "a": "", "n": 80}, {"t": "받으소서", "a": "예수전도단", "n": 81}, {"t": "보혈을 지나", "a": "", "n": 82}, {"t": "부흥", "a": "", "n": 83}, {"t": "비전", "a": "", "n": 84}, {"t": "사랑 이 세상에 가득하도록", "a": "", "n": 85}, {"t": "사랑합니다 나의 예수", "a": "", "n": 86}, {"t": "사랑해요 내 구주 예수", "a": "", "n": 87}, {"t": "사랑해요 목소리 높여", "a": "", "n": 88}, {"t": "사랑해요 주님", "a": "", "n": 89}, {"t": "산성이신 주", "a": "", "n": 90}, {"t": "살아계신 주", "a": "", "n": 91}, {"t": "새 힘 얻으리", "a": "", "n": 92}, {"t": "성령 받기 원하네", "a": "", "n": 93}, {"t": "성령의 은혜로", "a": "", "n": 94}, {"t": "성령이여 임하소서", "a": "", "n": 95}, {"t": "세상을 이기는 힘", "a": "", "n": 96}, {"t": "소원", "a": "", "n": 97}, {"t": "시작되는 오늘", "a": "", "n": 98}, {"t": "십자가를 바라볼 때", "a": "", "n": 99}, {"t": "아름다운 이야기", "a": "", "n": 100}, {"t": "아무것도 두려워 말라", "a": "", "n": 101}, {"t": "아바 아버지", "a": "두란노", "n": 102}, {"t": "아버지 당신의 뜻이라면", "a": "", "n": 103}, {"t": "아버지 사랑 내가 늘 노래해", "a": "", "n": 104}, {"t": "아버지 주 나의 아버지", "a": "", "n": 105}, {"t": "알 수 없는 힘", "a": "", "n": 106}, {"t": "야베스의 기도", "a": "", "n": 107}, {"t": "어느 날 문득", "a": "", "n": 108}, {"t": "어마어마하신 주 하나님", "a": "", "n": 109}, {"t": "여기에 모인 우리", "a": "", "n": 110}, {"t": "여호와 나의 목자", "a": "", "n": 111}, {"t": "여호와 라파", "a": "", "n": 112}, {"t": "여호와 삼마", "a": "", "n": 113}, {"t": "여호와 샬롬", "a": "", "n": 114}, {"t": "여호와 이레", "a": "", "n": 115}, {"t": "여호와는 나의 목자시니", "a": "", "n": 116}, {"t": "여호와의 산에서", "a": "", "n": 117}, {"t": "열방을 담아주소서", "a": "", "n": 118}, {"t": "열방이여 주를 찬양", "a": "", "n": 119}, {"t": "영원하신 주", "a": "", "n": 120}, {"t": "예배합니다", "a": "", "n": 121}, {"t": "예수 그리스도 우리 구세주", "a": "", "n": 122}, {"t": "예수 나의 좋은 친구", "a": "", "n": 123}, {"t": "예수 나의 치료자", "a": "", "n": 124}, {"t": "예수 내 왕이시여", "a": "", "n": 125}, {"t": "예수 이름 높이세", "a": "", "n": 126}, {"t": "예수 찬양", "a": "", "n": 127}, {"t": "예수 탁 붙잡게", "a": "", "n": 128}, {"t": "예수는 왕이시다", "a": "", "n": 129}, {"t": "오 주여 내 삶의 주인", "a": "", "n": 130}, {"t": "오 하나님", "a": "", "n": 131}, {"t": "오직 예수", "a": "", "n": 132}, {"t": "오직 주만이", "a": "송정미", "n": 133}, {"t": "온 맘 다해 주를 사랑합니다", "a": "", "n": 134}, {"t": "왕 되신 주님께", "a": "", "n": 135}, {"t": "왕의 제사장", "a": "", "n": 136}, {"t": "우리 보내소서", "a": "", "n": 137}, {"t": "우리 주 영광 받으소서", "a": "", "n": 138}, {"t": "우리 함께 모여", "a": "", "n": 139}, {"t": "은혜", "a": "", "n": 140}, {"t": "은혜 아니면", "a": "", "n": 141}, {"t": "이 기쁜 날", "a": "", "n": 142}, {"t": "이 산지를 내게 주소서", "a": "", "n": 143}, {"t": "이 집에 주 임재하리", "a": "", "n": 144}, {"t": "이세상 속에서", "a": "", "n": 145}, {"t": "임마누엘", "a": "", "n": 146}, {"t": "있는 모습 그대로", "a": "", "n": 147}, {"t": "작은 것이라도", "a": "", "n": 148}, {"t": "전능하신 나의 주", "a": "", "n": 149}, {"t": "주 나를 향한 사랑", "a": "", "n": 150}, {"t": "주 날 지키시네", "a": "", "n": 151}, {"t": "주 내 길 되시니", "a": "", "n": 152}, {"t": "주 달려가겠어요", "a": "", "n": 153}, {"t": "주 안에 우린 하나", "a": "", "n": 154}, {"t": "주 안에서", "a": "", "n": 155}, {"t": "주는 완전합니다", "a": "", "n": 156}, {"t": "주님 나를 사랑하시니", "a": "", "n": 157}, {"t": "주님 나를 살리셨네", "a": "", "n": 158}, {"t": "주님 다시 오실 때까지", "a": "", "n": 159}, {"t": "주님 마음 내게 주소서", "a": "", "n": 160}, {"t": "주님 오라 하시면", "a": "", "n": 161}, {"t": "주님 찬양해", "a": "", "n": 162}, {"t": "주님과 함께라면", "a": "예수전도단", "n": 163}, {"t": "주님의 도움없이는", "a": "", "n": 164}, {"t": "주님의 영광 임하네", "a": "", "n": 165}, {"t": "주님의 은혜", "a": "", "n": 166}, {"t": "주님이 주신 땅으로", "a": "", "n": 167}, {"t": "주님이 주신 모든 것", "a": "이성균", "n": 168}, {"t": "주여 이 죄인이", "a": "", "n": 169}, {"t": "주의 강이 흘러넘쳐", "a": "", "n": 170}, {"t": "주의 길을 가리라", "a": "", "n": 171}, {"t": "주의 사랑 놀랍도다", "a": "", "n": 172}, {"t": "주의 영이 임하는 곳에", "a": "", "n": 173}, {"t": "주의 이름 안에서", "a": "", "n": 174}, {"t": "주의 이름 찬양해", "a": "", "n": 175}, {"t": "주의 집에 거하리", "a": "두란노", "n": 176}, {"t": "찬양합니다", "a": "", "n": 177}, {"t": "찬양해 내 영혼아", "a": "", "n": 178}, {"t": "창조주 하나님", "a": "", "n": 179}, {"t": "축복합니다", "a": "", "n": 180}, {"t": "치료의 주", "a": "", "n": 181}, {"t": "평화의 빛으로", "a": "", "n": 182}, {"t": "하나님 아버지 주신 사랑", "a": "", "n": 183}, {"t": "하나님의 부르심에 따라", "a": "", "n": 184}, {"t": "하나님의 사람", "a": "", "n": 185}, {"t": "하나님의 세계", "a": "", "n": 186}, {"t": "하나님의 은혜", "a": "소리엘", "n": 187}, {"t": "하나님의 은혜로", "a": "", "n": 188}, {"t": "하나님의 자녀", "a": "", "n": 189}, {"t": "하나님이여 내 마음이 확정되었사오니", "a": "", "n": 190}, {"t": "할렐루야 나의 주 찬양해", "a": "", "n": 191}, {"t": "할렐루야 부르리", "a": "", "n": 192}, {"t": "합력하여 선을 이루시는 주", "a": "", "n": 193}, {"t": "항상 진실케", "a": "", "n": 194}, {"t": "헌신", "a": "", "n": 195}, {"t": "형제 자매들아", "a": "", "n": 196}, {"t": "호산나", "a": "", "n": 197}, {"t": "홀로 아름다우신", "a": "예수전도단", "n": 198}];
+
+// ─────────────────────────────────────────
+//  Image Folder Logic
+// ─────────────────────────────────────────
+
+/**
+ * 파일 이름에서 찬송가 번호를 추출한다.
+ * 지원 패턴:
+ *   093.jpg / 93.jpg / 찬송가093.jpg / 찬송가_093.jpg
+ *   새찬송가093.jpg / hymn093.jpg / 093-1.jpg (93장 1페이지) 등
+ * 반환: { num: Number, page: Number } 또는 null
+ */
+function parseHymnFilename(filename) {
+  // 확장자 제거
+  const base = filename.replace(/\.[^.]+$/, '');
+  // 연속 숫자 추출 (앞에서 첫 번째 숫자 덩어리)
+  const m = base.match(/(\d+)/);
+  if (!m) return null;
+  const num = parseInt(m[1], 10);
+  if (num < 1 || num > 800) return null;
+  // 페이지 번호: 숫자 뒤에 [-_]숫자 가 있으면
+  const pm = base.match(/\d+[-_](\d+)/);
+  const page = pm ? parseInt(pm[1], 10) : 1;
+  return { num, page };
+}
+
+function updateFolderUI() {
+  const display = document.getElementById('folderPathDisplay');
+  const clearBtn = document.getElementById('folderClearBtn');
+  if (folderName) {
+    display.textContent = folderName;
+    display.classList.remove('empty');
+    clearBtn.style.display = '';
+  } else {
+    display.textContent = '폴더 미설정';
+    display.classList.add('empty');
+    clearBtn.style.display = 'none';
+  }
+}
+
+function clearFolder() {
+  folderImageMap = {};
+  folderName = '';
+  folderFileCount = 0;
+  folderMappedCount = 0;
+  document.getElementById('folderInput').value = '';
+  updateFolderUI();
+  renderCatalog();
+}
+
+document.getElementById('folderSelectBtn').addEventListener('click', () => {
+  document.getElementById('folderInput').click();
+});
+
+document.getElementById('folderClearBtn').addEventListener('click', clearFolder);
+
+document.getElementById('folderInput').addEventListener('change', (e) => {
+  const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+  if (files.length === 0) { alert('선택한 폴더에 이미지 파일이 없습니다.'); return; }
+
+  folderFileCount = files.length;
+  folderImageMap = {};
+
+  // 폴더명 추출
+  const firstPath = files[0].webkitRelativePath || files[0].name;
+  folderName = firstPath.includes('/') ? firstPath.split('/')[0] : '선택한 폴더';
+  updateFolderUI();
+
+  // 파일 이름으로 번호 그룹화
+  // { num: [{page, file}, ...] }
+  const groups = {};
+  files.forEach(f => {
+    const parsed = parseHymnFilename(f.name);
+    if (!parsed) return;
+    const { num, page } = parsed;
+    if (!groups[num]) groups[num] = [];
+    groups[num].push({ page, file: f });
+  });
+
+  // 각 그룹을 페이지 순 정렬 후 Base64 변환
+  const numList = Object.keys(groups).map(Number);
+  folderMappedCount = numList.length;
+
+  let processed = 0;
+  const total = files.filter(f => {
+    const p = parseHymnFilename(f.name); return p !== null;
+  }).length;
+
+  if (total === 0) {
+    alert('파일 이름에서 찬송가 번호를 인식할 수 없습니다.\n파일 이름이 "093.jpg", "찬송가093.jpg" 등의 형식이어야 합니다.');
+    clearFolder();
+    return;
+  }
+
+  // 로딩 표시
+  document.getElementById('folderPathDisplay').textContent = `읽는 중… (0/${total})`;
+
+  numList.forEach(num => {
+    const sorted = groups[num].sort((a, b) => a.page - b.page);
+    folderImageMap[num] = new Array(sorted.length).fill(null);
+    sorted.forEach((item, idx) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        folderImageMap[num][idx] = ev.target.result;
+        processed++;
+        document.getElementById('folderPathDisplay').textContent = `읽는 중… (${processed}/${total})`;
+        if (processed >= total) {
+          // 완료
+          updateFolderUI();
+          updateFolderScanInfo();
+          renderCatalog();
+        }
+      };
+      reader.readAsDataURL(item.file);
+    });
+  });
+});
+
+function updateFolderScanInfo() {
+  const el = document.getElementById('folderScanInfo');
+  const txt = document.getElementById('folderScanText');
+  if (!folderName) {
+    el.classList.remove('visible');
+    return;
+  }
+  el.classList.add('visible');
+  const mapped = Object.keys(folderImageMap).length;
+  txt.textContent = `"${folderName}" — ${folderFileCount}개 파일에서 ${mapped}곡 번호 인식됨`;
+}
+
+// 특정 찬송가 번호에 매핑된 이미지 dataUrl 배열 반환 (없으면 [])
+function getFolderImages(num) {
+  if (!folderImageMap[num]) return [];
+  return folderImageMap[num].filter(Boolean);
+}
+
+// ─────────────────────────────────────────
+//  Catalog Modal
+// ─────────────────────────────────────────
+let catalogType = 'hymn';
+let catalogQuery = '';
+
+function openCatalog() {
+  document.getElementById('catalogOverlay').classList.add('open');
+  document.getElementById('catalogSearch').value = '';
+  catalogQuery = '';
+  updateFolderScanInfo();
+  renderCatalog();
+  setTimeout(() => document.getElementById('catalogSearch').focus(), 150);
+}
+function closeCatalog() { document.getElementById('catalogOverlay').classList.remove('open'); }
+
+// ── Save / Load ──────────────────────────────────
+document.getElementById('exportBtn').addEventListener('click', () => {
+  if (songs.length === 0) { alert('저장할 곡이 없습니다.'); return; }
+
+  // 이미지 데이터(Base64)는 이미 songs 안에 포함돼 있음
+  const exportData = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    songs: songs.map(s => ({
+      id: s.id,
+      type: s.type,
+      number: s.number,
+      title: s.title,
+      images: s.images || []   // Base64 그대로 복사
+    }))
+  };
+
+  const json = JSON.stringify(exportData, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const date = new Date().toLocaleDateString('ko-KR').replace(/\. /g,'-').replace('.','');
+  a.href = url;
+  a.download = `악보목록_${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('importBtn').addEventListener('click', () => {
+  document.getElementById('importFileInput').click();
+});
+
+document.getElementById('importFileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data.songs || !Array.isArray(data.songs)) throw new Error('올바른 형식이 아닙니다.');
+
+      const existingCount = songs.length;
+      const incoming = data.songs;
+
+      if (existingCount === 0) {
+        // 목록이 비어있으면 그냥 교체
+        songs = incoming;
+        await save();
+        renderList();
+        alert(`✅ ${incoming.length}곡을 불러왔습니다.`);
+      } else {
+        // 기존 목록이 있으면 선택지 제공
+        const choice = confirm(
+          `현재 목록 ${existingCount}곡이 있습니다.
+
+` +
+          `[확인] 기존 목록에 추가 (${incoming.length}곡)
+` +
+          `[취소] 기존 목록을 지우고 교체`
+        );
+        if (choice) {
+          // 추가 (id 중복 제거)
+          const existingIds = new Set(songs.map(s => s.id));
+          const toAdd = incoming.filter(s => !existingIds.has(s.id));
+          songs = [...songs, ...toAdd];
+          await save();
+          renderList();
+          alert(`✅ ${toAdd.length}곡 추가됨 (중복 ${incoming.length - toAdd.length}곡 제외)`);
+        } else {
+          songs = incoming;
+          activeId = null;
+          showNoSelection();
+          await save();
+          renderList();
+          alert(`✅ ${incoming.length}곡으로 교체됐습니다.`);
+        }
+      }
+    } catch (err) {
+      alert('❌ 파일을 읽을 수 없습니다: ' + err.message);
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+});
+
+document.getElementById('catalogBtn').addEventListener('click', openCatalog);
+document.getElementById('catalogClose').addEventListener('click', closeCatalog);
+document.getElementById('catalogOverlay').addEventListener('click', e => { if (e.target === document.getElementById('catalogOverlay')) closeCatalog(); });
+
+document.querySelectorAll('.ctype-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.ctype-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    catalogType = btn.dataset.ctype;
+    document.getElementById('catalogTitle').textContent = catalogType === 'hymn' ? '📖 찬송가 목차에서 악보 추가' : '🎵 복음성가 목차에서 악보 추가';
+    renderCatalog();
+  });
+});
+
+document.getElementById('catalogSearch').addEventListener('input', e => {
+  catalogQuery = e.target.value.trim();
+  renderCatalog();
+});
+
+function highlight(text, query) {
+  if (!query) return text;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.replace(new RegExp(escaped, 'gi'), m => `<mark>${m}</mark>`);
+}
+
+function renderCatalog() {
+  const list = document.getElementById('catalogList');
+  const info = document.getElementById('catalogResultInfo');
+  const db = catalogType === 'hymn' ? HYMN_DB : GOSPEL_DB;
+  const q = catalogQuery.toLowerCase();
+
+
+
+  let filtered = db;
+  if (q) {
+    filtered = db.filter(h => {
+      const numMatch = String(h.n).includes(q);
+      const titleMatch = h.t.toLowerCase().includes(q);
+      return numMatch || titleMatch;
+    });
+  }
+
+  const typeLabel = catalogType === 'hymn' ? '새찬송가' : '복음성가·CCM';
+  info.textContent = q ? `검색 결과 ${filtered.length}곡 / 전체 ${db.length}곡` : `${typeLabel} 전체 ${db.length}곡`;
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="catalog-empty">검색 결과가 없습니다.</div>';
+    return;
+  }
+
+  const addedNumbers = new Set(
+    songs.filter(s => s.type === catalogType).map(s => s.number)
+  );
+
+  list.innerHTML = '';
+  filtered.slice(0, 200).forEach(h => {
+    const numStr = String(h.n) + '장';
+    const alreadyAdded = addedNumbers.has(numStr);
+    const folderImgs = catalogType === 'hymn' ? getFolderImages(h.n) : [];
+    const hasImg = folderImgs.length > 0;
+    const div = document.createElement('div');
+    div.className = 'catalog-item' + (alreadyAdded ? ' already-added' : '');
+    div.innerHTML = `
+      <span class="ci-num">${h.n}${catalogType==='hymn'?'장':''}</span>
+      <span class="ci-title">${highlight(h.t, catalogQuery)}</span>
+      ${h.a ? `<span class="ci-artist">${h.a}</span>` : ''}
+      ${folderName && catalogType === 'hymn'
+        ? (hasImg
+            ? `<span class="ci-img-badge">🖼 ${folderImgs.length}p</span>`
+            : `<span class="ci-img-badge missing">이미지 없음</span>`)
+        : ''}
+      ${!alreadyAdded ? `<button class="ci-add" data-n="${h.n}" data-t="${h.t.replace(/"/g,'&quot;')}">+ 목록 추가</button>` : ''}
+    `;
+    if (!alreadyAdded) {
+      div.querySelector('.ci-add').addEventListener('click', (e) => {
+        e.stopPropagation();
+        addHymnFromCatalog(h.n, h.t, catalogType);
+        renderCatalog();
+      });
+    }
+    list.appendChild(div);
+  });
+
+  if (filtered.length > 200) {
+    const more = document.createElement('div');
+    more.className = 'catalog-empty';
+    more.style.paddingTop = '10px';
+    more.textContent = `... 외 ${filtered.length - 200}곡 더 있습니다. 검색어를 입력하여 좁혀보세요.`;
+    list.appendChild(more);
+  }
+}
+
+function addHymnFromCatalog(num, title, type) {
+  const numStr = type === 'hymn' ? String(num) + '장' : String(num) + '번';
+  // 중복 확인
+  const exists = songs.some(s => s.type === type && s.number === numStr);
+  if (exists) return;
+
+  // 폴더에서 이미지 자동 연결 (찬송가만)
+  const autoImages = (type === 'hymn') ? getFolderImages(num) : [];
+
+  const newSong = {
+    id: Date.now().toString() + Math.random().toString(36).slice(2),
+    title, type,
+    number: numStr,
+    images: autoImages
+  };
+  songs.push(newSong);
+  save();
+  renderList();
+
+  if (autoImages.length > 0) {
+    // 잠깐 피드백 표시
+    const infoEl = document.getElementById('catalogResultInfo');
+    const prev = infoEl.textContent;
+    infoEl.textContent = `✅ "${title}" 추가됨 — 이미지 ${autoImages.length}페이지 자동 연결`;
+    infoEl.style.color = '#3a8a3a';
+    setTimeout(() => { infoEl.textContent = prev; infoEl.style.color = ''; }, 2000);
+  }
+}
+
+// ─────────────────────────────────────────
+//  Sidebar Toggle (접기/펼치기)
+// ─────────────────────────────────────────
+(function initSidebarToggle() {
+  const btn = document.getElementById('sidebarToggle');
+  const sidebar = document.querySelector('.sidebar');
+  let isCollapsed = false;
+
+  // 매 프레임마다 사이드바 오른쪽 끝에 버튼을 붙임
+  // CSS transition 타이밍 불일치 문제를 완전히 우회
+  function trackLoop() {
+    btn.style.left = sidebar.offsetWidth + 'px';
+    requestAnimationFrame(trackLoop);
+  }
+  requestAnimationFrame(trackLoop);
+
+  btn.addEventListener('click', () => {
+    isCollapsed = !isCollapsed;
+    sidebar.classList.toggle('collapsed', isCollapsed);
+    btn.classList.toggle('open', !isCollapsed);
+    btn.classList.toggle('closed', isCollapsed);
+    btn.title = isCollapsed ? '목록 펼치기' : '목록 접기';
+  });
+})();
+
+// ─────────────────────────────────────────
+//  Init
+// ─────────────────────────────────────────
+initDB();
+</script>
+</body>
+</html>
