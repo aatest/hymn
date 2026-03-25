@@ -225,6 +225,9 @@
     text-transform: uppercase;
     letter-spacing: 1px;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .song-list {
@@ -356,22 +359,17 @@
   .song-item:hover .delete-btn { color: #c06060; }
 
   /* Sidebar footer */
-  .sidebar-footer {
-    flex-shrink: 0;
-    padding: 10px 12px;
-    border-top: 1px solid #c8bca8;
-  }
   .clear-all-btn {
-    width: 100%;
-    padding: 8px;
     background: none;
     border: 1px solid #c8a0a0;
-    border-radius: 8px;
+    border-radius: 6px;
     color: #a06060;
     font-family: 'Noto Sans KR', sans-serif;
-    font-size: 12px;
+    font-size: 10px;
+    padding: 3px 8px;
     cursor: pointer;
     transition: all 0.15s;
+    white-space: nowrap;
   }
   .clear-all-btn:hover { background: #c06060; border-color: #c06060; color: #fff; }
 
@@ -1084,12 +1082,11 @@
   <button class="catalog-btn" id="catalogBtn">📖 찬송가 목차에서 악보 추가</button>
   <button class="add-btn" id="addBtn">＋ 악보 추가</button>
 
-    <div class="list-header" id="listHeader">목록</div>
-    <div class="song-list" id="songList"></div>
-
-    <div class="sidebar-footer">
+    <div class="list-header">
+      <span id="listHeader">목록</span>
       <button class="clear-all-btn" id="clearAllBtn" title="목록 전체 삭제">🗑 전체 삭제</button>
     </div>
+    <div class="song-list" id="songList"></div>
   </div>
 
   <!-- ── VIEWER ── -->
