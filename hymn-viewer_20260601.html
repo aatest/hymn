@@ -24,6 +24,9 @@
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
+  /* 안드로이드/삼성인터넷의 자동 글자 확대(폰트 부스팅) 차단 — 제목이 거대해지는 문제 해결 */
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
   body {
     font-family: 'Noto Sans KR', sans-serif;
     background: var(--bg);
@@ -712,11 +715,27 @@
     .header-actions { gap: 5px; margin-left: 6px; }
     .hdr-btn { padding: 5px 9px; font-size: 11px; border-radius: 6px; }
     header .count-badge { padding: 2px 9px; font-size: 11px; }
+
+    /* 뷰어 툴바: 제목이 한 글자씩 눌리지 않도록 줄바꿈 + 제목 한 줄 전체 사용 */
+    .viewer-toolbar { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+    .viewer-toolbar > div:first-child { flex: 1 1 100%; min-width: 0; }
+    .viewer-title { font-size: 15px; }
+    .viewer-subtitle { font-size: 11px; }
+    .nav-btn { width: 32px; height: 32px; font-size: 15px; }
+    .page-indicator { min-width: 40px; font-size: 12px; }
+    .zoom-controls { padding-left: 8px; margin-left: 0; gap: 4px; }
+    .zoom-btn { width: 28px; height: 28px; font-size: 15px; }
+    .zoom-level { min-width: 32px; font-size: 11px; }
+    /* 곡 이동 바도 좁은 화면에 맞게 */
+    .cont-nav-bar { padding: 6px 10px; gap: 6px; }
+    .cont-nav-btn { max-width: 38vw; padding: 5px 9px; font-size: 11px; }
+    .cont-song-info { font-size: 11px; }
   }
   @media (max-width: 380px) {
     header .logo { font-size: 15px; }
     header .count-badge { display: none; }     /* 아주 좁은 화면에선 곡수 배지도 숨김 */
     .hdr-btn { padding: 5px 8px; }
+    .viewer-title { font-size: 14px; }
   }
   .thumb.active { border-color: var(--accent); }
   .thumb-placeholder {
