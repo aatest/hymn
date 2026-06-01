@@ -30,7 +30,8 @@
   body {
     font-family: 'Noto Sans KR', sans-serif;
     background: var(--bg);
-    height: 100vh;
+    height: 100vh;                 /* 폴백 */
+    height: var(--app-h, 100vh);   /* 삼성인터넷 등에서 실제 보이는 높이로 보정 */
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -1719,14 +1720,24 @@ function renderPage(song) {
     pi.textContent = '이미지 없음';
   } else {
     img.style.display = 'block';
-    img.src = imgs[currentPageIdx];
-    // CSS zoom: 레이아웃 공간을 실제로 차지하므로 스크롤도 자연스럽게 동작
-    img.style.maxWidth  = 'calc(100% - 40px)';
-    img.style.maxHeight = 'calc(100vh - 260px)';
-    img.style.width     = 'auto';
-    img.style.height    = 'auto';
-    img.style.transform = '';
-    img.style.zoom      = zoomScale;
+    // 줌 = '컨테이너에 맞춘 기본 크기(px) × 배율'로 직접 계산.
+    // (CSS zoom + vh 조합은 배율을 올릴수록 vh가 배율로 나뉘어 오히려 작아지는 문제가 있음)
+    const applyFit = () => {
+      const area = document.getElementById('imageArea');
+      if (!img.naturalWidth || !area) return;
+      const availW = Math.max(50, area.clientWidth - 40);   // .image-area padding 20*2
+      const availH = Math.max(50, area.clientHeight - 40);
+      const baseScale = Math.min(1, availW / img.naturalWidth, availH / img.naturalHeight);
+      img.style.maxWidth  = 'none';
+      img.style.maxHeight = 'none';
+      img.style.zoom      = '';
+      img.style.transform = '';
+      img.style.width  = (img.naturalWidth  * baseScale * zoomScale) + 'px';
+      img.style.height = (img.naturalHeight * baseScale * zoomScale) + 'px';
+    };
+    img.onload = applyFit;
+    if (img.src !== imgs[currentPageIdx]) img.src = imgs[currentPageIdx];
+    if (img.complete && img.naturalWidth) applyFit();
     pi.textContent = `${currentPageIdx + 1} / ${imgs.length}`;
   }
 
@@ -1968,6 +1979,25 @@ function resetZoom() { zoomScale = 1; const song = songs.find(s => s.id === acti
 document.getElementById('zoomIn').addEventListener('click', () => zoom(0.15));
 document.getElementById('zoomOut').addEventListener('click', () => zoom(-0.15));
 document.getElementById('zoomReset').addEventListener('click', resetZoom);
+
+// 실제 보이는 화면 높이를 --app-h에 반영 (100vh가 하단 툴바까지 포함하는 문제 보정)
+function setAppHeight() {
+  document.documentElement.style.setProperty('--app-h', window.innerHeight + 'px');
+}
+setAppHeight();
+window.addEventListener('resize', setAppHeight);
+window.addEventListener('orientationchange', () => setTimeout(setAppHeight, 200));
+
+// 창 크기/회전 변경 시 기본 맞춤 크기 재계산 (px 기반이므로 수동 갱신 필요)
+let _resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => {
+    setAppHeight();
+    const song = songs.find(s => s.id === activeId);
+    if (song) renderPage(song);
+  }, 120);
+});
 
 // ─────────────────────────────────────────
 //  Search & Filter
