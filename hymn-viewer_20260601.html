@@ -412,12 +412,31 @@
     font-weight: 600;
     color: #4a4038;
     flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    line-height: 1.25;
   }
+  .viewer-title-row { flex: 1; min-width: 0; }
+  .viewer-controls-row { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
   .viewer-subtitle {
     font-size: 12px;
     color: #8a7d68;
-    margin-top: 2px;
+    margin-top: 4px;
+    white-space: nowrap;
+    display: inline-block;
   }
+  .viewer-subtitle:empty { display: none; margin: 0; }
+  .viewer-subtitle .song-tag { font-size: 11px; }
+  /* 제목 앞에 붙는 찬송가/복음성가 태그 (flex 중앙 정렬 + 명조 글자 광학 보정) */
+  .viewer-title .song-tag {
+    flex-shrink: 0;
+    font-size: 12px;
+    line-height: 1.4;
+    position: relative;
+    top: 1px;
+  }
+  .viewer-title .vtitle-text { min-width: 0; line-height: 1.25; }
   .nav-btn {
     background: var(--sidebar-bg);
     border: none;
@@ -716,9 +735,9 @@
     .hdr-btn { padding: 5px 9px; font-size: 11px; border-radius: 6px; }
     header .count-badge { padding: 2px 9px; font-size: 11px; }
 
-    /* 뷰어 툴바: 제목이 한 글자씩 눌리지 않도록 줄바꿈 + 제목 한 줄 전체 사용 */
-    .viewer-toolbar { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
-    .viewer-toolbar > div:first-child { flex: 1 1 100%; min-width: 0; }
+    /* 뷰어 툴바: 휴대폰에선 제목 행 / 컨트롤(페이지·크기) 행 2줄로 분리 */
+    .viewer-toolbar { flex-direction: column; align-items: stretch; gap: 8px; padding: 10px 12px; }
+    .viewer-controls-row { flex-wrap: wrap; gap: 8px; }
     .viewer-title { font-size: 15px; }
     .viewer-subtitle { font-size: 11px; }
     .nav-btn { width: 32px; height: 32px; font-size: 15px; }
@@ -1150,18 +1169,20 @@
 
     <div id="viewerContent" style="display:none; flex-direction:column; flex:1; overflow:hidden;">
       <div class="viewer-toolbar">
-        <div style="flex:1">
+        <div class="viewer-title-row">
           <div class="viewer-title" id="vTitle">—</div>
           <div class="viewer-subtitle" id="vSubtitle"></div>
         </div>
-        <button class="nav-btn" id="prevBtn" title="이전 (←)">‹</button>
-        <span class="page-indicator" id="pageIndicator">—</span>
-        <button class="nav-btn" id="nextBtn" title="다음 (→)">›</button>
-        <div class="zoom-controls">
-          <button class="zoom-btn" id="zoomOut" title="축소">−</button>
-          <span class="zoom-level" id="zoomLevel">100%</span>
-          <button class="zoom-btn" id="zoomIn" title="확대">＋</button>
-          <button class="zoom-btn" id="zoomReset" title="원래 크기">⊙</button>
+        <div class="viewer-controls-row">
+          <button class="nav-btn" id="prevBtn" title="이전 (←)">‹</button>
+          <span class="page-indicator" id="pageIndicator">—</span>
+          <button class="nav-btn" id="nextBtn" title="다음 (→)">›</button>
+          <div class="zoom-controls">
+            <button class="zoom-btn" id="zoomOut" title="축소">−</button>
+            <span class="zoom-level" id="zoomLevel">100%</span>
+            <button class="zoom-btn" id="zoomIn" title="확대">＋</button>
+            <button class="zoom-btn" id="zoomReset" title="원래 크기">⊙</button>
+          </div>
         </div>
       </div>
 
@@ -1676,8 +1697,11 @@ function showViewer(song) {
   const vc = document.getElementById('viewerContent');
   vc.style.display = 'flex';
 
-  document.getElementById('vTitle').textContent = (song.number ? song.number + ' ' : '') + song.title;
-  document.getElementById('vSubtitle').textContent = song.type === 'hymn' ? '찬송가' : '복음성가';
+  const _isHymn = song.type === 'hymn';
+  const _tag = `<span class="song-tag ${_isHymn ? 'tag-hymn' : 'tag-gospel'}">${_isHymn ? '찬송가' : '복음성가'}</span>`;
+  const _titleText = (song.number ? song.number + ' ' : '') + song.title;
+  document.getElementById('vTitle').innerHTML = _tag + '<span class="vtitle-text">' + _titleText + '</span>';
+  document.getElementById('vSubtitle').innerHTML = '';
 
   renderPage(song);
   renderThumbs(song);
